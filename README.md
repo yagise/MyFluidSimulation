@@ -6,11 +6,6 @@ CUDA 上で動く 3D LBM(D3Q19) の実験用コードです。
 - **HOME 法** … `fluidsim_home`
 - **従来法 + HOME 法(Hybrid(B0))** … `fluidsim_hybrid`
 
-> メモ: このリポジトリの HOME は「モーメント保存 (moment-encoded)」を導入した版です。
-> - 1セルあたり `rho,u(3),S(6)` の **10変数バッファ** を保持し、`f_i` は保持しません。
-> - streaming に必要な `f_i` は毎ステップ `(rho,u,S)` から **2次までの regularized 形式**で再構成します。
-> - あらためて HOME-LBM の全要素（D3Q27、3次Hermite再構成、central-moment 衝突など）は本コードには含めていません。
-
 加えて、OpenGL で可視化しながら比較できる GUI 実行ファイル `fluidsim_compare`、
 ベンチマーク用の `fluidsim_tgv` / `fluidsim_bench` も含みます。
 
