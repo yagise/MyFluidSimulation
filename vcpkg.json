@@ -1,0 +1,10 @@
+{
+  "name": "fluidsim-extended",
+  "version-string": "0.1.0",
+  "description": "CUDA + OpenGL LBM demo (Legacy / HOME / Hybrid(B0))",
+  "dependencies": [
+    "glfw3",
+    "glad",
+    "glm"
+  ]
+}

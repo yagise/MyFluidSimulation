@@ -1,0 +1,29 @@
+# Build outputs
+build/
+build_*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.ninja
+.ninja_deps
+.ninja_log
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.suo
+*.vcxproj*
+*.sln
+
+# Generated simulation outputs
+out_vtk/
+results*/
+*.vtk
+*.csv
+*.png
+*.gif
+
+# OS
+.DS_Store
+Thumbs.db

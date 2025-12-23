@@ -1,0 +1,57 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Release (no toolchain)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug (no toolchain)",
+      "binaryDir": "${sourceDir}/build_debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release-vcpkg",
+      "displayName": "Release (vcpkg toolchain)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "release-vcpkg-headless",
+      "displayName": "Release (vcpkg, headless only)",
+      "binaryDir": "${sourceDir}/build_headless",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FLUIDSIM_BUILD_GUI": "OFF",
+        "CMAKE_TOOLCHAIN_FILE": "${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-release",
+      "configurePreset": "release-vcpkg",
+      "jobs": 0
+    },
+    {
+      "name": "build-headless",
+      "configurePreset": "release-vcpkg-headless",
+      "jobs": 0
+    }
+  ]
+}

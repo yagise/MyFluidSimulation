@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software in a scientific publication, please cite it.
+  (Please edit this file to match your paper / repository URL.)
+title: FluidSimExtended
+version: 0.1.0
+date-released: "2025-12-21"
+url: https://github.com/<YOUR_ACCOUNT>/<YOUR_REPO>
+authors:
+  - family-names: <FAMILY_NAME>
+    given-names: <GIVEN_NAME>
+keywords:
+  - lattice boltzmann method
+  - CUDA
+  - fluid simulation
+  - GPU
+license: MIT
