@@ -108,7 +108,7 @@ cmake -S . -B build \
 - `B` : Hybrid(B0) 表示
 - `C` : Compare 表示
 
-### 2) 論文用（headless 実行）
+### 2) GUIなしでvtk出力
 
 GUI を使わず、各手法を独立に回して VTK を出力します。
 
@@ -133,7 +133,7 @@ python scripts/generate_tgv_2d.py --nx 128 --ny 128 --u0 0.06 --out out_vtk
 
 ## 出力(VTK)
 
-headless 実行の VTK 出力は **VTK legacy ASCII** です。
+VTK 出力は **VTK legacy ASCII** です。
 
 例:
 
@@ -162,7 +162,7 @@ Python 依存は `requirements.txt` を参照してください。
 .
 ├─ src/
 │  ├─ lbm/        # LBM 本体 (Legacy / HOME / Hybrid)
-│  ├─ apps/       # 論文向け headless main
+│  ├─ apps/       # headless
 │  ├─ bench/      # ベンチマーク (TGV 等)
 │  ├─ geom/       # STL ロード / voxelize
 │  ├─ fields/     # 初期条件・場の演算
