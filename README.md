@@ -103,7 +103,7 @@ cmake -S . -B build \
 - `B` : Hybrid(B0) 表示
 - `C` : Compare 表示
 
-### 2) 論文用 headless 実行
+### 2) headless 実行
 GUI を使わず、各手法を独立に回して VTK を出力します。
 ```bash
 # 例: 2000 step 回して 200 step ごとに VTK 出力
@@ -150,7 +150,7 @@ Python 依存は `requirements.txt` を参照してください。
 .
 ├─ src/
 │  ├─ lbm/        # LBM 本体 (Legacy / HOME / Hybrid)
-│  ├─ apps/       # 論文向け headless main
+│  ├─ apps/       # headless main
 │  ├─ bench/      # ベンチマーク (TGV など)
 │  ├─ geom/       # STL ローダ / voxelize
 │  ├─ fields/     # 初期条件・場の演算
@@ -159,9 +159,4 @@ Python 依存は `requirements.txt` を参照してください。
 └─ docs/          # ビルド・使い方・実験手順
 ```
 
----
 
-## 論文での利用
-
-- 研究で利用する場合は `CITATION.cff` を（必要に応じて編集して）利用してください。
-- ライセンスは `LICENSE` を参照し、公開時に必要事項を確定してください。
