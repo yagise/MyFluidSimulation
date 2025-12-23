@@ -25,11 +25,11 @@ __constant__ float wi[19]  = {
 // param f: 入力パラメータ
 // param N: 入力パラメータ
 // return: なし
-__global__ void kern_reinit_eq(const float* __restrict__ rho,
-                               const float* __restrict__ ux,
-                               const float* __restrict__ uy,
-                               const float* __restrict__ uz,
-                               float* __restrict__ f,
+__global__ void kern_reinit_eq(const float*  rho,
+                               const float*  ux,
+                               const float*  uy,
+                               const float*  uz,
+                               float*  f,
                                int N)
 {
     int i = blockIdx.x*blockDim.x + threadIdx.x;

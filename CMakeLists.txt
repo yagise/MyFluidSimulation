@@ -6,6 +6,13 @@ project(FluidSim LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 14)
 
+# MSVC で UTF-8 ソースを扱うための設定
+if(MSVC)
+  add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
+  add_compile_options("$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>")
+endif()
+
+
 option(FLUIDSIM_BUILD_GUI "Build OpenGL GUI viewer (fluidsim_compare)" ON)
 
 # GLM は voxelize 等でも使うため、GUI の有無に関わらず必須

@@ -53,8 +53,8 @@ class LBM3D_Hybrid {
 public:
     // summary: 確保したメモリを解放する
     // param: なし
-    // return: 戻り値
-    ~LBM3D_Hybrid(){ release(); }
+    // return: なし
+    ~LBM3D_Hybrid();
 
     // summary: 初期化処理を行う
     // param d: 入力パラメータ
@@ -85,9 +85,9 @@ public:
     // param d_uz: 入力パラメータ
     // return: なし
     void reinitEquilibriumFromMacro(const float* d_rho,
-                                    const float* d_ux=nullptr,
-                                    const float* d_uy=nullptr,
-                                    const float* d_uz=nullptr);
+                                    const float* d_ux,
+                                    const float* d_uy,
+                                    const float* d_uz);
 
     // summary: step の処理を行う
     // param substeps: 入力パラメータ

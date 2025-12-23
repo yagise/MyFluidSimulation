@@ -2,6 +2,11 @@
 
 #include "../common/cuda_utils.hpp"
 
+// summary: 確保したメモリを解放する
+// param: なし
+// return: なし
+LBM3D_Home::~LBM3D_Home(){ release(); }
+
 //
 // HOME(moments-only) 実装
 //
@@ -32,7 +37,7 @@ __device__ __constant__ float w19_h[19] = {1.0f/3.0f,
 // summary: opp19 の処理を行う
 // param i: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ int opp19(int i){
+__device__ __forceinline__ static int opp19(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
@@ -44,7 +49,7 @@ static __device__ __forceinline__ int opp19(int i){
 // param Nx: 入力パラメータ
 // param Ny: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ int index3D(int x,int y,int z,int Nx,int Ny){
+__device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
 
@@ -66,7 +71,7 @@ static __device__ __forceinline__ int index3D(int x,int y,int z,int Nx,int Ny){
 // param Szz: 入力パラメータ
 // param oneMinusOmega: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ float reconstruct_f_post(
+__device__ __forceinline__ static float reconstruct_f_post(
     int q,
     float rho,
     float ux,
@@ -120,7 +125,7 @@ static __device__ __forceinline__ float reconstruct_f_post(
 // param Ny: 入力パラメータ
 // param Nz: 入力パラメータ
 // return: なし
-static __global__ void kern_reset_mom(float* m, float* mnext,
+__global__ static void kern_reset_mom(float* m, float* mnext,
                                       int Nx,int Ny,int Nz)
 {
     const int ix = blockIdx.x*blockDim.x + threadIdx.x;
@@ -155,7 +160,7 @@ static __global__ void kern_reset_mom(float* m, float* mnext,
 // param uzIn: 入力パラメータ
 // param N: 入力パラメータ
 // return: なし
-static __global__ void kern_reinit_from_macro(float* m, float* mnext,
+__global__ static void kern_reinit_from_macro(float* m, float* mnext,
                                               const float* rhoIn,
                                               const float* uxIn,
                                               const float* uyIn,
@@ -201,7 +206,7 @@ static __global__ void kern_reinit_from_macro(float* m, float* mnext,
 // param fy: 入力パラメータ
 // param fz: 入力パラメータ
 // return: なし
-static __global__ void kern_step_moments_only(const float* m, float* mnext,
+__global__ static void kern_step_moments_only(const float* m, float* mnext,
                                               const unsigned char* solid,
                                               int Nx,int Ny,int Nz,
                                               float omega,

@@ -2,6 +2,11 @@
 #include "../common/cuda_utils.hpp"
 #include <cmath>
 
+// summary: 確保したメモリを解放する
+// param: なし
+// return: なし
+LBM3D_Hybrid::~LBM3D_Hybrid(){ release(); }
+
 //
 // Correct B0 implementation (full-f, cell-wise switch)
 //
@@ -34,7 +39,7 @@ __device__ __constant__ float w19_b0[19] = {1.0f/3.0f,
 // summary: opp19 の処理を行う
 // param i: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ int opp19(int i){
+__device__ __forceinline__ static int opp19(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
@@ -46,7 +51,7 @@ static __device__ __forceinline__ int opp19(int i){
 // param Nx: 入力パラメータ
 // param Ny: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ int index3D(int x,int y,int z,int Nx,int Ny){
+__device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
 
@@ -57,7 +62,7 @@ static __device__ __forceinline__ int index3D(int x,int y,int z,int Nx,int Ny){
 // param uy: 入力パラメータ
 // param uz: 入力パラメータ
 // return: 戻り値
-static __device__ __forceinline__ float feq19(int q, float rho, float ux, float uy, float uz){
+__device__ __forceinline__ static float feq19(int q, float rho, float ux, float uy, float uz){
     float eiu = cx19_b0[q]*ux + cy19_b0[q]*uy + cz19_b0[q]*uz;
     float uu = ux*ux + uy*uy + uz*uz;
     return w19_b0[q]*rho*(1.0f + 3.0f*eiu + 4.5f*eiu*eiu - 1.5f*uu);
@@ -73,7 +78,7 @@ static __device__ __forceinline__ float feq19(int q, float rho, float ux, float 
 // param Ny: 入力パラメータ
 // param Nz: 入力パラメータ
 // return: なし
-static __global__ void kern_reset(float* f, float* rho, float* u, float* v, float* w,
+__global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
     int iy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -102,7 +107,7 @@ static __global__ void kern_reset(float* f, float* rho, float* u, float* v, floa
 // param Ny: 入力パラメータ
 // param Nz: 入力パラメータ
 // return: なし
-static __global__ void kern_reinit_equilibrium(const float* rhoIn,
+__global__ static void kern_reinit_equilibrium(const float* rhoIn,
                                                const float* uxIn,
                                                const float* uyIn,
                                                const float* uzIn,
@@ -152,7 +157,7 @@ static __global__ void kern_reinit_equilibrium(const float* rhoIn,
 // param fy: 入力パラメータ
 // param fz: 入力パラメータ
 // return: なし
-static __global__ void kern_collide_stream_b0(const float* f, float* fnext,
+__global__ static void kern_collide_stream_b0(const float* f, float* fnext,
                                               float* rho, float* ux, float* uy, float* uz,
                                               const unsigned char* solid,
                                               const unsigned char* isLegacy,
@@ -246,7 +251,7 @@ static __global__ void kern_collide_stream_b0(const float* f, float* fnext,
 // param b: 入力パラメータ
 // param n: 入力パラメータ
 // return: なし
-static __global__ void kern_swap(float* a, float* b, int n){
+__global__ static void kern_swap(float* a, float* b, int n){
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i<n){ float t=a[i]; a[i]=b[i]; b[i]=t; }
 }

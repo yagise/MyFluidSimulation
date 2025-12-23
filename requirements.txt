@@ -1,8 +1,6 @@
-# Python helper scripts dependencies
+﻿# Python helper scripts dependencies
 #
-# - generate_tgv_2d.py は標準ライブラリのみで動きます
-# - その他の plot/VTK 変換スクリプトで matplotlib / numpy 等を使います
-
+# - generate_tgv_2d.py 縺ｯ讓呎ｺ悶Λ繧､繝悶Λ繝ｪ縺ｮ縺ｿ縺ｧ蜍輔″縺ｾ縺・# - 縺昴・莉悶・ plot/VTK 螟画鋤繧ｹ繧ｯ繝ｪ繝励ヨ縺ｧ matplotlib / numpy 遲峨ｒ菴ｿ縺・∪縺・
 matplotlib>=3.5
 numpy>=1.21
 imageio>=2.0
