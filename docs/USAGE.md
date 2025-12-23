@@ -9,12 +9,10 @@
 - `fluidsim_tgv`     : Taylor–Green vortex ベンチ
 - `fluidsim_bench`   : 計測/実験用ベンチ（用途はソース参照）
 
-> 注意: `fluidsim_legacy/home/hybrid` は「論文に載せやすい」ことを優先しているため、
-> 引数は必要最低限のみ実装しています（GUI 専用の回転/移動などは入っていません）。
 
 ---
 
-## 1) 論文用 headless 実行（共通）
+## 1)headless 実行（共通）
 
 対象:
 
