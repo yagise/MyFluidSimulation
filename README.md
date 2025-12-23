@@ -16,11 +16,6 @@ CUDA 上で動く 3D LBM(D3Q19) の実験用コードです。
 加えて、OpenGL で可視化しながら比較できる GUI 実行ファイル `fluidsim_compare`、
 ベンチマーク用の `fluidsim_tgv` / `fluidsim_bench` も含みます。
 
-> **重要**
-> - デバッグ目的の **障害物モデル(fan / teardrop) 自動投入**は行いません。
->   障害物を入れる場合は `--stl` / `--fan` / `--teardrop` を **必ず明示**してください。
-> - 回転体・移動壁などの「比較条件を増やす機能」は入れていません。
-
 ---
 
 ## 目次
@@ -153,8 +148,6 @@ headless 実行の VTK 出力は **VTK legacy ASCII** です。
 - `speed_home_000200.vtk` : |u|
 - `vel_hybrid_000200.vtk` : 速度ベクトル
 
-ParaView 等で読み込んで可視化してください。
-
 ---
 
 ## Python スクリプト
@@ -185,9 +178,3 @@ Python 依存は `requirements.txt` を参照してください。
 └─ docs/          # ビルド・使い方・実験手順
 ```
 
----
-
-## 論文での利用
-
-- 研究で利用する場合は `CITATION.cff` を（必要に応じて編集して）利用してください。
-- ライセンスは `LICENSE` を参照（公開時に必ず内容を確定してください）。
