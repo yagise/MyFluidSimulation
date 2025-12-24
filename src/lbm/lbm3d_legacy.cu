@@ -33,6 +33,10 @@ __device__ __forceinline__ static int opp(int i){
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
+// --- GPU kernels ---
+// kern_reset           : rho=1,u=0 の平衡分布で f を初期化
+// kern_collide_stream  : BGK 衝突 + ストリーミング + バウンスバック
+// kern_swap            : ping-pong バッファの入れ替え
 __global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   const unsigned char* solid, int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
@@ -133,6 +137,7 @@ void LBM3D_Legacy::release(){
     cudaFree(d_w_); d_w_=nullptr;
     cudaFree(d_solid_); d_solid_=nullptr;
 }
+// Domain 情報を受け取り、内部状態を構築
 void LBM3D_Legacy::init(const Domain& d){
     Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
     tau_ = d.tau;
@@ -140,9 +145,11 @@ void LBM3D_Legacy::init(const Domain& d){
     allocate();
     reset();
 }
+// ホスト側マスクをデバイスへコピー
 void LBM3D_Legacy::setSolidMask(const unsigned char* h_mask){
     CUDA_CHECK(cudaMemcpy(d_solid_, h_mask, sizeof(unsigned char)*N_, cudaMemcpyHostToDevice));
 }
+// rho=1,u=0 の平衡状態で配列を埋める
 void LBM3D_Legacy::reset(){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -199,6 +206,7 @@ void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
     CUDA_CHECK(cudaMemcpy(d_fnext_, d_f_, bytesF, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaDeviceSynchronize());
 }
+// BGK 衝突+ストリーミングを substeps 回分進める
 void LBM3D_Legacy::step(int substeps){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);

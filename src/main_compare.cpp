@@ -74,6 +74,7 @@ struct Tracer {
     glm::vec3 pos;
     std::vector<glm::vec3> trail;
 };
+// メッシュを z 軸回りに回転する簡易ユーティリティ
 static TriangleMesh rotate_mesh_z(const TriangleMesh& src, float angle){
     TriangleMesh dst;
     dst.indices = src.indices;
@@ -90,6 +91,7 @@ static TriangleMesh rotate_mesh_z(const TriangleMesh& src, float angle){
     }
     return dst;
 }
+// メッシュを平行移動する
 static TriangleMesh translate_mesh(const TriangleMesh& src, const glm::vec3& delta){
     TriangleMesh dst;
     dst.indices = src.indices;
@@ -152,12 +154,13 @@ struct TracerRenderer {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*3, (void*)0);
         glBindVertexArray(0);
     }
-// 状態を更新する
+    // トレイル頂点を GPU バッファへ転送する
     void updateBuffer(const Tracer& t){
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         int cnt = (int)std::min<size_t>(t.trail.size(), maxVerts);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*3*cnt, t.trail.data());
     }
+    // MVP/色を設定してトレイルを線と点で描画する
     void draw(const Tracer& t, const glm::mat4& mvp, const glm::vec3& color){
         if(t.trail.empty()) return;
         int cnt = (int)std::min<size_t>(t.trail.size(), maxVerts);

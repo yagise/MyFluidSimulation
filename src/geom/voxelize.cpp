@@ -4,6 +4,13 @@
 #include <algorithm>
 #include <cmath>
 #include <glm/glm.hpp>
+
+// STL から生成した三角形メッシュをボクセル化し、solid/fluid マスクを作る。
+// - triBoxOverlap_SAT : 三角形とボクセルの交差判定（分離軸定理）
+// - make_transformed_tris : ユーザー指定のスケール/平行移動を適用
+// - voxelize_single_resolution : 単一解像度で表面+内部を塗る
+// - downsample_amr : refine^3 の高解像度ボクセルを占有率で粗化する
+// - voxelize_mesh_to_mask : 上記を組み合わせた外向き API（voxelize.hpp）
 static inline glm::vec3 vmin3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::min(a.x,b.x), std::min(a.y,b.y), std::min(a.z,b.z));
 }
@@ -12,6 +19,7 @@ static inline glm::vec3 vmax3(const glm::vec3& a, const glm::vec3& b){
 }
 static inline float fmin3(float a,float b,float c){ return std::min(a,std::min(b,c)); }
 static inline float fmax3(float a,float b,float c){ return std::max(a,std::max(b,c)); }
+// 三角形と軸平行ボックスが交差するかを SAT で判定する
 static bool triBoxOverlap_SAT(const glm::vec3& c, const glm::vec3& half,
                               const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
 {
@@ -71,6 +79,7 @@ static bool triBoxOverlap_SAT(const glm::vec3& c, const glm::vec3& half,
     }
     return true; // 全テストを通過 → 交差
 }
+// メッシュを単位立方体に収めるためのスケールと平行移動を計算する
 static void compute_fit_transform(const TriangleMesh& m, const VoxelParams& vp,
                                   float& s, glm::vec3& trans)
 {
@@ -82,6 +91,7 @@ static void compute_fit_transform(const TriangleMesh& m, const VoxelParams& vp,
 }
 
 struct Tri { glm::vec3 v0, v1, v2; };
+// 入力メッシュにスケール/平行移動を適用し、三角形配列に展開する
 static std::vector<Tri> make_transformed_tris(const TriangleMesh& meshIn, const VoxelParams& params){
     float s = 1.0f; glm::vec3 trans(0.0f);
     compute_fit_transform(meshIn, params, s, trans);
@@ -101,6 +111,7 @@ static std::vector<Tri> make_transformed_tris(const TriangleMesh& meshIn, const 
     }
     return tris;
 }
+// 単一解像度で三角形群を voxelize し、表面/内部を 1 にしたマスクを返す
 static std::vector<unsigned char> voxelize_single_resolution(const std::vector<Tri>& tris,
                                                              int Nx,int Ny,int Nz)
 {
@@ -172,6 +183,7 @@ static std::vector<unsigned char> voxelize_single_resolution(const std::vector<T
     }
     return solid;
 }
+// refine^3 のマスクを占有率しきい値で粗化する（壁 AMR 用）
 static std::vector<unsigned char> downsample_amr(const std::vector<unsigned char>& fine,
                                                  int refine,
                                                  int Nx, int Ny, int Nz,
@@ -212,6 +224,7 @@ static std::vector<unsigned char> downsample_amr(const std::vector<unsigned char
     }
     return coarse;
 }
+// 公開 API: メッシュを指定解像度(必要なら refine)でボクセル化し solid マスクを返す
 std::vector<unsigned char> voxelize_mesh_to_mask(const TriangleMesh& meshIn, const VoxelParams& params)
 {
     auto tris = make_transformed_tris(meshIn, params);

@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <limits>
 #include <glm/glm.hpp> // vec3
+
+// STL を読み込み TriangleMesh へ展開するユーティリティと、
+// 実験用の手続きメッシュ生成関数をまとめた実装。
+// ASCII/Binary の両方に対応し、読み込み中にバウンディングボックスを更新する。
 static inline glm::vec3 vmin3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::min(a.x,b.x), std::min(a.y,b.y), std::min(a.z,b.z));
 }
@@ -26,7 +30,7 @@ struct BinTri {
     unsigned short attr;
 };
 #pragma pack(pop)
-// 引数や入力設定を解析する
+// ASCII STL を 1 行ずつ読んで TriangleMesh へ格納する（簡易パーサ）
 static bool parse_ascii(std::istream& is, TriangleMesh& out){
     out.positions.clear();
     out.indices.clear();
@@ -59,7 +63,7 @@ static bool parse_ascii(std::istream& is, TriangleMesh& out){
     }
     return !out.indices.empty();
 }
-// 引数や入力設定を解析する
+// Binary STL を読み取り TriangleMesh へ格納する
 static bool parse_binary(std::istream& is, TriangleMesh& out){
     char header[80];
     if(!is.read(header,80)) return false;
@@ -94,7 +98,7 @@ static bool parse_binary(std::istream& is, TriangleMesh& out){
     }
     return true;
 }
-// 入力データを読み込む
+// パスを見て ASCII/Binary を自動判別し TriangleMesh を返す
 bool load_stl(const std::string& path, TriangleMesh& out){
     std::ifstream f(path, std::ios::binary);
     if(!f) return false;
@@ -116,6 +120,7 @@ bool load_stl(const std::string& path, TriangleMesh& out){
     // binary
     return parse_binary(f, out);
 }
+// 滴型の手続きメッシュを生成する（テスト用）
 TriangleMesh make_teardrop(unsigned nu, unsigned nv){
     TriangleMesh m;
     m.bbmin = glm::vec3( std::numeric_limits<float>::max() );
@@ -151,6 +156,7 @@ TriangleMesh make_teardrop(unsigned nu, unsigned nv){
     }
     return m;
 }
+// 扇風機の羽根のような手続きメッシュを生成する（テスト用）
 TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness){
     TriangleMesh m;
     m.bbmin = glm::vec3( std::numeric_limits<float>::max() );

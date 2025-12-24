@@ -52,13 +52,7 @@ def analytic_tgv_cell_center(ix: int, iy: int, nx: int, ny: int, u0: float, cs2:
 
 
 def build_tgv2d(nx: int, ny: int, u0: float) -> Field2D:
-    """データを生成する
-param nx: 入力パラメータ
-param ny: 入力パラメータ
-param u0: 入力パラメータ
-return: 戻り値
-
-2D TGV の (rho,u,v) フィールドを生成する。"""
+    """2D TGV の (rho,u,v) フィールドを生成する。"""
     rho: List[float] = [0.0] * (nx * ny)
     u: List[float] = [0.0] * (nx * ny)
     v: List[float] = [0.0] * (nx * ny)
@@ -75,16 +69,7 @@ return: 戻り値
 
 
 def write_vtk_structured_points_scalar(path: str, name: str, nx: int, ny: int, nz: int, data: List[float]) -> None:
-    """ファイル等へ書き出す
-param path: 入力パラメータ
-param name: 入力パラメータ
-param nx: 入力パラメータ
-param ny: 入力パラメータ
-param nz: 入力パラメータ
-param data: 入力パラメータ
-return: なし
-
-VTK(LEGACY ASCII) の STRUCTURED_POINTS としてスカラー場を書き出す。"""
+    """VTK(LEGACY ASCII) の STRUCTURED_POINTS としてスカラー場を書き出す。"""
     assert len(data) == nx * ny * nz
     with open(path, "w", encoding="utf-8") as f:
         f.write("# vtk DataFile Version 3.0\n")
@@ -102,16 +87,7 @@ VTK(LEGACY ASCII) の STRUCTURED_POINTS としてスカラー場を書き出す�
 
 
 def write_vtk_structured_points_vector(path: str, name: str, nx: int, ny: int, nz: int, data_xyz: List[Tuple[float, float, float]]) -> None:
-    """ファイル等へ書き出す
-param path: 入力パラメータ
-param name: 入力パラメータ
-param nx: 入力パラメータ
-param ny: 入力パラメータ
-param nz: 入力パラメータ
-param data_xyz: 入力パラメータ
-return: なし
-
-VTK(LEGACY ASCII) の STRUCTURED_POINTS としてベクトル場を書き出す。"""
+    """VTK(LEGACY ASCII) の STRUCTURED_POINTS としてベクトル場を書き出す。"""
     assert len(data_xyz) == nx * ny * nz
     with open(path, "w", encoding="utf-8") as f:
         f.write("# vtk DataFile Version 3.0\n")
@@ -163,4 +139,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

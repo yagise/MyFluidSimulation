@@ -64,6 +64,7 @@ struct SampleRow {
     SolverSample legacy;
     SolverSample home;
 };
+// 解析解 (t=0) を格子点で評価する
 static AnalyticState analytic_tgv(int ix, int iy, int /*iz*/, double t, const Config& cfg) {
     const double tx = (static_cast<double>(ix) + 0.5) * cfg.kxWave;
     const double ty = (static_cast<double>(iy) + 0.5) * cfg.kyWave;
@@ -85,6 +86,7 @@ static AnalyticState analytic_tgv(int ix, int iy, int /*iz*/, double t, const Co
     return a;
 }
 
+// ホスト側の初期フィールドを GPU に転送し、各ソルバを同じ初期条件に揃える
 template <typename Solver>
 static void apply_initial_fields(const Config& cfg,
                                  Solver& solver,
@@ -137,6 +139,7 @@ static void initialize_solvers(const Config& cfg, LBM3D_Legacy& legacy, LBM3D_Ho
     apply_initial_fields(cfg, home,   rho, ux, uy, uz);
 }
 
+// ソルバの状態をサンプリングし、解析解との誤差を計算する
 template <typename Solver>
 static SolverSample sample_solver(const Solver& solver,
                                   std::vector<float>& rho,
@@ -181,8 +184,8 @@ static SolverSample sample_solver(const Solver& solver,
     s.linf = maxErr;
     return s;
 }
-static double analytic_energy(double t, const Config& cfg) {
 // エネルギーの解析解: E = (u0^2 / 4) * exp(-2 * nu * k^2 * t)
+static double analytic_energy(double t, const Config& cfg) {
     return 0.25 * cfg.u0 * cfg.u0 * std::exp(-2.0 * cfg.nu * cfg.k2 * t);
 }
 // 出力データを書き出す

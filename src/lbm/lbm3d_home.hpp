@@ -26,16 +26,22 @@
 
 class LBM3D_Home {
 public:
-// 確保したメモリを解放する
+    // GPU リソースを後片付けする
     ~LBM3D_Home();
+    // サイズ・緩和時間・外力を Domain から受け取り、デバイスメモリを初期化
     void init(const Domain& d);
+    // ホスト側マスクをデバイスにコピー（1:solid, 0:fluid）
     void setSolidMask(const unsigned char* h_mask);
+    // rho=1, u=0 の平衡状態で全セルを埋める
     void reset();
+    // 既存の密度・速度場から moments バッファを平衡に再構成
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
+    // collide + stream を substeps 回進める
     void step(int substeps = 1);
+    // 簡易外力（速度に加算する形）を設定
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
     float*       d_rho();
     const float* d_rho() const;
@@ -52,9 +58,9 @@ public:
     int N()  const { return N_; }
 
 private:
-// 確保したメモリを解放する
+    // 確保したメモリを解放する
     void release();
-// 必要なメモリを確保する
+    // 必要なメモリを確保する
     void allocate();
     int Nx_=0, Ny_=0, Nz_=0, N_=0;
     float tau_ = 0.6f;

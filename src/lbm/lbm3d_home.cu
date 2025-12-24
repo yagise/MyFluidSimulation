@@ -79,6 +79,7 @@ __device__ __forceinline__ static float reconstruct_f_post(
     // 衝突後（streaming に流す値）
     return feq + oneMinusOmega * fneq;
 }
+// rho=1, u=0, S=0 で moments バッファを初期化する
 __global__ static void kern_reset_mom(float* m, float* mnext,
                                       int Nx,int Ny,int Nz)
 {
@@ -104,6 +105,7 @@ __global__ static void kern_reset_mom(float* m, float* mnext,
     mnext[3*N + id] = 0.0f;
     for(int k=4;k<10;++k) mnext[k*N + id] = 0.0f;
 }
+// ホストから与えられた密度・速度場を moments バッファにコピー
 __global__ static void kern_reinit_from_macro(float* m, float* mnext,
                                               const float* rhoIn,
                                               const float* uxIn,
@@ -136,6 +138,7 @@ __global__ static void kern_reinit_from_macro(float* m, float* mnext,
 
 //
 // collide + stream（gather）
+// moments だけを保存した状態で BGK 緩和 + bounce-back を行うメインカーネル
 __global__ static void kern_step_moments_only(const float* m, float* mnext,
                                               const unsigned char* solid,
                                               int Nx,int Ny,int Nz,
@@ -294,6 +297,7 @@ void LBM3D_Home::release(){
     cudaFree(d_mnext_); d_mnext_ = nullptr;
     cudaFree(d_solid_); d_solid_ = nullptr;
 }
+// 計算格子サイズや緩和時間をセットし、GPU バッファを準備する
 void LBM3D_Home::init(const Domain& d){
     Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
     tau_ = d.tau;
@@ -301,9 +305,11 @@ void LBM3D_Home::init(const Domain& d){
     allocate();
     reset();
 }
+// 固体セルのマスク（1:solid）を GPU に転送する
 void LBM3D_Home::setSolidMask(const unsigned char* h_mask){
     CUDA_CHECK(cudaMemcpy(d_solid_, h_mask, sizeof(unsigned char)*N_, cudaMemcpyHostToDevice));
 }
+// rho=1, u=0, S=0 の平衡状態に戻す
 void LBM3D_Home::reset(){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -311,6 +317,7 @@ void LBM3D_Home::reset(){
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
+// 既存の密度・速度場から moments バッファを再構成する
 void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
                                             const float* d_ux,
                                             const float* d_uy,
@@ -324,6 +331,7 @@ void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
+// collide + stream を substeps 回実行するメインループ
 void LBM3D_Home::step(int substeps){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);

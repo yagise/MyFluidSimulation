@@ -1,4 +1,9 @@
-﻿#include <cuda_runtime.h>
+#include <cuda_runtime.h>
+
+// 密度場 rho を初期化するための簡易プロファイル生成カーネル。
+// - kern_rho_gauss : ガウス分布を重ねた密度場を作る
+// - kern_rho_slab  : ある軸方向に slab 状に密度を持たせる
+// それぞれ make_rho_* でグリッドを組み、呼び出し側に隠蔽する。
 __global__ void kern_rho_gauss(float* rho, int Nx,int Ny,int Nz,
                                float cx,float cy,float cz, float sigma, float amp)
 {
@@ -22,6 +27,7 @@ __global__ void kern_rho_slab(float* rho, int Nx,int Ny,int Nz,
     float val = (fabsf(s-center) < 0.5f*width) ? amp : 0.f;
     rho[i] = 1.0f + val;
 }
+// ホスト側ラッパー: rho にガウス分布を足し込む
 extern "C" void make_rho_gauss(float* d_rho, int Nx,int Ny,int Nz,
                                float cx,float cy,float cz, float sigma, float amp)
 {
@@ -29,6 +35,7 @@ extern "C" void make_rho_gauss(float* d_rho, int Nx,int Ny,int Nz,
     dim3 bs(256), gs((N+255)/256);
     kern_rho_gauss<<<gs,bs>>>(d_rho, Nx,Ny,Nz, cx,cy,cz, sigma, amp);
 }
+// ホスト側ラッパー: rho を slab 状の密度で初期化する
 extern "C" void make_rho_slab(float* d_rho, int Nx,int Ny,int Nz,
                               int axis, float amp, float center, float width)
 {

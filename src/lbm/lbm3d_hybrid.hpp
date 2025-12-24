@@ -17,18 +17,25 @@
 
 class LBM3D_Hybrid {
 public:
-// 確保したメモリを解放する
+    // 確保したメモリを解放する
     ~LBM3D_Hybrid();
+    // 格子サイズ・緩和時間を設定し、Legacy/HOME の混在用バッファを確保
     void init(const Domain& d, int nLegacyCells = 0);
+    // 障害物マスクを GPU にコピー
     void setSolidMask(const unsigned char* h_mask);
+    // dist_to_solid <= d0 のセルを Legacy として扱うためのマッピングをセット
     void setLegacyMapping(const unsigned char* h_isLegacy,
                           const int*           h_legacySlot_ignored);
+    // rho=1, u=0 で初期化
     void reset();
+    // 既存の rho,u から平衡分布/モーメントを再構成する
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
+    // Hybrid(B0) の衝突を substeps 回進める
     void step(int substeps = 1);
+    // 外力を設定
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
     // Hybrid(B0) でも移動壁補正は不要なため削除。
     float*       d_f()       { return d_f_; }
@@ -49,7 +56,7 @@ public:
     int Ny() const { return Ny_; }
     int Nz() const { return Nz_; }
     int N()  const { return N_; }
-// 確保したメモリを解放する
+    // 確保したメモリを解放する
     void release();
 
 private:

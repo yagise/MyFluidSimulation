@@ -18,17 +18,24 @@
 
 class LBM3D_Legacy {
 public:
-// 確保したメモリを解放する
+    // GPU リソースを破棄
     ~LBM3D_Legacy();
+    // 格子サイズや緩和時間を設定しデバイスメモリを確保する
     void init(const Domain& d);
+    // solid(1)/fluid(0) マスクを GPU にコピー
     void setSolidMask(const unsigned char* h_mask);
+    // rho=1, u=0 の平衡状態で分布関数を埋める
     void reset();
+    // 既存の rho,u から feq を再構成し、f を平衡に戻す
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
+    // 衝突+ストリーミングを substeps 回進める
     void step(int substeps = 1);
+    // 簡易外力（速度への加算）を設定
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
+    // 内部バッファへのポインタを返す（VTK 書き出し等で使用）
     float*       d_f();
     const float* d_f() const;
     float*       d_fnext();
@@ -48,9 +55,9 @@ public:
     int N()  const { return N_; }
 
 private:
-// 確保したメモリを解放する
+    // 確保したメモリを解放する
     void release();
-// 必要なメモリを確保する
+    // 必要なメモリを確保する
     void allocate();
     int Nx_=0, Ny_=0, Nz_=0, N_=0;
     float tau_ = 0.6f;

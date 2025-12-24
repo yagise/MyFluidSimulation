@@ -16,6 +16,7 @@ __constant__ float wi[19]  = {
     1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,
     1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f
 };
+// 密度・速度場から平衡分布 feq を再計算し、f を初期化する
 __global__ void kern_reinit_eq(const float*  rho,
                                const float*  ux,
                                const float*  uy,
@@ -47,6 +48,7 @@ __global__ void kern_reinit_eq(const float*  rho,
         f[fIndex(q,i,N)] = feq;
     }
 }
+// Host 呼び出し用ラッパー: デバイス上の macro 量から f を平衡に戻す
 extern "C" void reinit_equilibrium_from_macro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,
