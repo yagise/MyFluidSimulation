@@ -7,12 +7,6 @@ LBM3D_Home::~LBM3D_Home(){ release(); }
 //
 // HOME(moments-only) 実装
 //
-// 依頼内容(1) モーメント保存にするだけを反映した実装。
-//
-// - D3Q19 のまま（論文の D3Q27 などは未導入）
-// - 境界は静止壁の単純 bounce-back
-// - 外力は従来コードと同じ速度に加算する簡易モデル
-//
 // 保存する量（1セルあたり10変数）:
 // rho, (ux,uy,uz), Sxx,Sxy,Sxz,Syy,Syz,Szz
 // ここで S は 2次の非平衡応力（Pi^neq）を表す。
