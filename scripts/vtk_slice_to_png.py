@@ -31,7 +31,7 @@ def read_structured_scalar(path: Path):
     arr = np.asarray(vals, dtype=np.float32)
     if arr.size != dims[0] * dims[1] * dims[2]:
         raise RuntimeError(f"Data size mismatch in {path}, got {arr.size}, expected {dims}")
-    return arr.reshape((dims[2], dims[1], dims[0]))  # z, y, x
+    return arr.reshape((dims[2], dims[1], dims[0]))  # z, y, x 順
 
 
 def save_frame(z_slice_legacy, z_slice_home, step, out_dir):
@@ -74,7 +74,7 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Collect matching pairs by step number
+    # ステップ番号で対応するペアを集める
     pattern = re.compile(r"speed_legacy_(\d+)\.vtk$")
     legacy_files = {}
     for p in glob.glob(str(vtk_dir / "speed_legacy_*.vtk")):
@@ -96,7 +96,7 @@ def main():
 
         legacy = read_structured_scalar(legacy_path)
         home = read_structured_scalar(home_path)
-        # take middle z plane
+        # z 中央面を使う
         z = legacy.shape[0] // 2
         frame_paths.append(save_frame(legacy[z], home[z], step, out_dir))
         print(f"[frame] step {step} -> {frame_paths[-1]}")

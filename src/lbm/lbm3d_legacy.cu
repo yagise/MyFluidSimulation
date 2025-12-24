@@ -33,10 +33,10 @@ __device__ __forceinline__ static int opp(int i){
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
-// --- GPU kernels ---
+// --- GPU カーネル ---
 // kern_reset           : rho=1,u=0 の平衡分布で f を初期化
 // kern_collide_stream  : BGK 衝突 + ストリーミング + バウンスバック
-// kern_swap            : ping-pong バッファの入れ替え
+// kern_swap            : ピンポンバッファの入れ替え
 __global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   const unsigned char* solid, int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
@@ -165,7 +165,7 @@ void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
     //
     // 目的:
     // 初期条件を "rho,u を与えて平衡分布へ" で統一する。
-    // (HOME も moments-only の reinit を持つため、API を揃える)
+    // (HOME もモーメントのみの reinit を持つため、API を揃える)
     //
     // 入力:
     // d_rho, d_ux, d_uy, d_uz はいずれも device pointer を想定。
@@ -201,7 +201,7 @@ void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
     reinit_equilibrium_from_macro(d_rho_, d_u_, d_v_, d_w_, d_f_, N_);
     CUDA_CHECK(cudaGetLastError());
 
-    // fnext も整合させる（step 内で swap するため）
+    // fnext も整合させる（ステップ内でスワップするため）
     const size_t bytesF = sizeof(float) * 19ull * static_cast<size_t>(N_);
     CUDA_CHECK(cudaMemcpy(d_fnext_, d_f_, bytesF, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaDeviceSynchronize());

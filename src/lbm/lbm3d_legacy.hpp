@@ -10,7 +10,7 @@
 //
 // 特徴:
 // - 分布関数 f_i を全方向(19)×全セルで保持
-// - 1step = 衝突(BGK) + ストリーミング(push)
+// - 1ステップ = 衝突(BGK) + ストリーミング（プッシュ）
 // - 障害物境界は静止壁の単純バウンスバック
 //
 // - 移動壁（回転体など）の補正は比較条件を複雑にするため削除
@@ -22,7 +22,7 @@ public:
     ~LBM3D_Legacy();
     // 格子サイズや緩和時間を設定しデバイスメモリを確保する
     void init(const Domain& d);
-    // solid(1)/fluid(0) マスクを GPU にコピー
+    // 固体(1)/流体(0) マスクを GPU にコピー
     void setSolidMask(const unsigned char* h_mask);
     // rho=1, u=0 の平衡状態で分布関数を埋める
     void reset();

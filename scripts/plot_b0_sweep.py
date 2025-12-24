@@ -11,9 +11,9 @@ def read_csv(path: Path):
     """CSV を読み込み、辞書のリストで返す"""
     rows = []
     with path.open("r", encoding="utf-8", errors="ignore") as f:
-        # keep only the CSV header + numeric lines
+        # CSV ヘッダと数値行だけ残す
         lines = [ln.strip() for ln in f if ln.strip()]
-    # find header line (starts with "d0,")
+    # ヘッダ行を探す（"d0," で始まる）
     header_idx = None
     for i, ln in enumerate(lines):
         if ln.startswith("d0,"):
@@ -66,12 +66,12 @@ def main():
     plt.savefig(out_path, dpi=180)
     print("Saved:", out_path)
 
-    # Optional second plot: cost proxy (legacy ratio and ms/step)
+    # 追加のプロット: コスト指標（legacy 比率と ms/step）
     out2 = out_path.with_name(out_path.stem + "_cost.png")
     plt.figure()
     plt.plot(d0, legacy_ratio, marker="o", label="Legacy ratio (cells)")
     plt.plot(d0, ms_hyb, marker="o", label="Hybrid ms/step")
-    # repeat baselines as flat lines (use first value)
+    # 基準値はフラット線として再描画（先頭値を使用）
     if ms_legacy:
         plt.plot(d0, [ms_legacy[0]]*len(d0), label="Legacy ms/step")
     if ms_home:

@@ -203,7 +203,7 @@ int main(int argc, char** argv){
     bool haveObstacle = false;
     std::string stlPath;
 
-std::string initMode = "none";  // none / gauss / slab
+std::string initMode = "none";  // モード: none / gauss / slab
 float amp = 1e-3f, sigma = 0.08f;
 glm::vec3 cen(0.6f,0.5f,0.5f);
 int axis = 0; float center=0.5f, width=0.2f;
@@ -213,12 +213,12 @@ enum class VtkSolver { Legacy, Home };
 VtkSolver vtkSolver = VtkSolver::Home;
 int amrFactor = 1;
 float amrThreshold = 0.5f;
-int wallMetricsEvery = 0; // steps; 0 disables near-wall diagnostics
+int wallMetricsEvery = 0; // ステップ単位。0 で近傍壁面の診断を無効化
 
-// --- Hybrid(B0) parameters ---
-int hybridBand = 2;          // B0: wall-distance band thickness (d0). default=2
-int hybridSweepMax = -1;     // if >=0, run headless sweep for d0=0..hybridSweepMax and exit
-int hybridSweepSteps = 500;  // steps per d0 in sweep mode
+// --- Hybrid(B0) のパラメータ ---
+int hybridBand = 2;          // B0: 壁距離バンド厚み(d0)。既定=2
+int hybridSweepMax = -1;     // 0 以上なら d0=0..hybridSweepMax をヘッドレスでスイープして終了
+int hybridSweepSteps = 500;  // スイープモードの d0 1 つあたりのステップ
 
 
 
@@ -245,7 +245,7 @@ int hybridSweepSteps = 500;  // steps per d0 in sweep mode
             else if(s=="hybrid" || s=="b0") solverView = SolverView::Hybrid;
             else if(s=="compare") solverView = SolverView::Compare;
         }else if (a == "--init" && argi+1 < argc) { 
-    initMode = argv[++argi]; // "gauss" or "slab" or "none"
+    initMode = argv[++argi]; // "gauss" / "slab" / "none" を指定
 }
 else if (a == "--amp" && argi+1 < argc) { 
     amp = std::stof(argv[++argi]);     // 例: 1e-3
@@ -391,11 +391,11 @@ if(wallMetricsEvery>0){
 //
 // 固体までの 6 近傍距離を整数フィールドとして持ち、距離が d0 以下なら LEGACY、そうでなければ HOME
 // と判定する帯域を作る。nearWallFluid と同じく非周期境界で計算するため、周期境界が必要なら
-// wraparound するように計算を差し替える。
+// ラップアラウンドするように計算を差し替える。
 const int maxBandForDist = std::max(hybridBand, hybridSweepMax);
 std::vector<int> distToSolid(numCells, -1);
 if(maxBandForDist > 0){
-    // Multi-source BFS from all solid cells (distance 0).
+    // 全 solid セル（距離0）からのマルチソース BFS
     std::vector<int> q;
     q.reserve(numCells/4);
     for(int i=0;i<numCells;++i){
@@ -421,7 +421,7 @@ if(maxBandForDist > 0){
     while(head < q.size()){
         const int id   = q[head++];
         const int dcur = distToSolid[id];
-        if(dcur >= maxBandForDist) continue; // we only need distances up to maxBandForDist
+        if(dcur >= maxBandForDist) continue; // maxBandForDist までの距離だけ必要
 
         const int z = id / strideZ;
         const int rem = id - z*strideZ;
@@ -438,10 +438,10 @@ if(maxBandForDist > 0){
     }
 }
 
-// Build mapping arrays for a given band thickness d0.
-// Output:
-// isLegacyOut[i] = 1 if fluid cell i is in the legacy band
-// slotOut[i] = compact index in [0, nLegacyCells)
+// 指定したバンド厚み d0 のマッピング配列を作る
+// 出力:
+// isLegacyOut[i] = 1: 流体セル i が Legacy バンド内
+// slotOut[i] = [0, nLegacyCells) のコンパクトなインデックス
 auto buildLegacyBand = [&](int d0,
                            std::vector<unsigned char>& isLegacyOut,
                            std::vector<int>&           slotOut)->int
@@ -461,7 +461,7 @@ auto buildLegacyBand = [&](int d0,
     return count;
 };
 
-// Build the mapping for the "interactive" hybrid solver instance (single d0).
+// "interactive" 用の hybrid ソルバ（単一 d0）向けマッピングを作る
 std::vector<unsigned char> hybridIsLegacy;
 std::vector<int>           hybridLegacySlot;
 const int nLegacyCells = buildLegacyBand(hybridBand, hybridIsLegacy, hybridLegacySlot);
@@ -484,7 +484,7 @@ if(initMode=="gauss"){
     make_rho_gauss(d_rhoInit, d.Nx,d.Ny,d.Nz, cen.x,cen.y,cen.z, sigma, amp);
 }else if(initMode=="slab"){
     make_rho_slab(d_rhoInit, d.Nx,d.Ny,d.Nz, axis, amp, center, width);
-}else{ // none
+}else{ // none（何もしない）
     // ρ=1 で開始
     cudaMemset(d_rhoInit, 0, sizeof(float)*N);
     // 小さなカーネルで+1しても良いが、ここでは reinit 側で rho=0 を許容しないので、
@@ -496,7 +496,7 @@ if(initMode=="gauss"){
 // --- 平衡に “再構成” ---
 // 初期条件の作り方を全ソルバで統一する。
 // - Legacy : (rho,u) から平衡分布 f_i を構成し、fnext も整合
-// - HOME : moments-only なので (rho,u,S=0) を構成し、mnext も整合
+// - HOME : モーメントのみなので (rho,u,S=0) を構成し、mnext も整合
 legacy.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
 home  .reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
 hybrid.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
@@ -510,16 +510,16 @@ hybrid.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
 // 出力: d0, legacy_cells, mean|u|_legacy, mean|u|_hybrid, mean_abs_diff
 if(hybridSweepMax >= 0){
     // 実験用モード: まず LEGACY/HOME を 1 回ずつ回して基準を作り、d0=0..hybridSweepMax で
-    // HYBRID(B0) を実行し壁近傍統計を比較する。near-wall は 6 近傍に solid がある流体セル
+    // HYBRID(B0) を実行し壁近傍統計を比較する。近傍壁面は 6 近傍に solid がある流体セル
     // (dist=1) を指す。legacy_ratio は legacy_cells / fluid_cells（solid を除外）。
     std::printf("[hybrid] B0 sweep enabled: d0=0..%d, steps_per_run=%d\n",
                 hybridSweepMax, hybridSweepSteps);
 
-    // Count fluid cells once for ratio reporting.
+    // 比率算出用に流体セル数を 1 回だけ数える
     int nFluidCells = 0;
     for(int i=0;i<numCells;++i) if(!solidMask[i]) ++nFluidCells;
 
-    // Scratch buffers to compute |u| and mean rho, and copy back.
+    // |u| と平均 rho を計算して戻すための作業バッファ
     float* d_speed = nullptr;
     cudaMalloc(&d_speed, sizeof(float)*numCells);
     std::vector<float> hSpeed(numCells);
@@ -535,7 +535,7 @@ if(hybridSweepMax >= 0){
         return (nFluidCells > 0) ? (sum / (double)nFluidCells) : 0.0;
     };
 
-    // Helper: time "steps" calls to solver.step(1) using CUDA events.
+    // ヘルパー: CUDA イベントで solver.step(1) を "steps" 回実行した時間を計測
     auto time_ms_per_step = [&](auto&& stepLambda, int steps)->double{
         if(steps <= 0) return 0.0;
         cudaEvent_t ev0, ev1;
@@ -553,7 +553,7 @@ if(hybridSweepMax >= 0){
     };
 
     //
-    // 1) LEGACY baseline (run once)
+    // 1) LEGACY の基準（1回）
     //
     std::vector<float> baselineNearWall; baselineNearWall.reserve(nearWallFluid.size());
     double meanU_legacy = 0.0;
@@ -565,15 +565,15 @@ if(hybridSweepMax >= 0){
         leg.init(d);
         leg.setSolidMask(solidMask.data());
 
-        // Initial condition: equilibrium reconstructed from rho-field
+        // 初期条件: rho フィールドから平衡を再構成
         leg.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
         msPerStep_legacy = time_ms_per_step([&](){ leg.step(1); }, hybridSweepSteps);
 
-        // Compute speed field
+        // 速度場を計算
         launch_speed(leg.d_u(), leg.d_v(), leg.d_w(), d_speed, numCells);
         cudaMemcpy(hSpeed.data(), d_speed, sizeof(float)*numCells, cudaMemcpyDeviceToHost);
 
-        // Extract near-wall speeds (baseline) and compute mean
+        // 近傍壁面の速度（基準）を抽出して平均を計算
         double sumL = 0.0;
         baselineNearWall.resize(nearWallFluid.size());
         for(size_t k=0; k<nearWallFluid.size(); ++k){
@@ -585,12 +585,12 @@ if(hybridSweepMax >= 0){
         const double cnt = (nearWallFluid.empty()? 1.0 : (double)nearWallFluid.size());
         meanU_legacy = sumL / cnt;
 
-        // Mean rho (mass conservation sanity check)
+        // 平均 rho（質量保存の簡易チェック）
         meanRho_legacy = mean_rho_from_device(leg.d_rho());
-    } // leg destructor frees GPU memory
+    } // leg のデストラクタが GPU メモリを解放
 
     //
-    // 2) HOME baseline (run once)
+    // 2) HOME の基準（1回）
     //
     double meanU_home = 0.0;
     double meanAbsDiff_home = 0.0;
@@ -602,7 +602,7 @@ if(hybridSweepMax >= 0){
         ho.init(d);
         ho.setSolidMask(solidMask.data());
 
-        // HOME も同じ API で初期条件を作る（moments-only）
+        // HOME も同じ API で初期条件を作る（モーメントのみ）
         ho.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
         msPerStep_home = time_ms_per_step([&](){ ho.step(1); }, hybridSweepSteps);
 
@@ -621,20 +621,20 @@ if(hybridSweepMax >= 0){
         meanAbsDiff_home = sumAbs / cnt;
 
         meanRho_home = mean_rho_from_device(ho.d_rho());
-    } // ho destructor frees GPU memory
+    } // ho のデストラクタが GPU メモリを解放
 
     //
-    // 3) HYBRID(B0) sweep for d0=0..max
+    // 3) HYBRID(B0) を d0=0..max でスイープ
     //
-    // CSV header:
+    // CSV ヘッダ:
     std::printf("d0,legacy_cells,legacy_ratio,"
                 "mean_u_legacy,mean_u_home,mean_u_hybrid,"
                 "mean_absdiff_home,mean_absdiff_hybrid,"
                 "mean_rho_legacy,mean_rho_home,mean_rho_hybrid,"
                 "absdiff_rho_home,absdiff_rho_hybrid,"
                 "ms_per_step_legacy,ms_per_step_home,ms_per_step_hybrid,"
-                // --- extra columns to compare *wall AMR* settings across runs ---
-                // These make it easier to merge/plot CSVs without relying on file names.
+                // --- 実行間で *wall AMR* 設定を比較するための追加列 ---
+                // ファイル名に頼らず CSV を結合/プロットしやすくするため。
                 "amr_factor,amr_threshold,fluid_cells,near_wall_cells\n");
 
     for(int d0=0; d0<=hybridSweepMax; ++d0){
@@ -672,7 +672,7 @@ if(hybridSweepMax >= 0){
             meanAbsDiff_hyb = sumAbs / cnt;
 
             meanRho_hyb = mean_rho_from_device(hyb.d_rho());
-        } // hyb destructor frees GPU memory
+        } // hyb のデストラクタが GPU メモリを解放
 
         const double absDiffRho_home = std::abs(meanRho_home - meanRho_legacy);
         const double absDiffRho_hyb  = std::abs(meanRho_hyb  - meanRho_legacy);
@@ -729,7 +729,7 @@ cudaMalloc(&d_diffRho,     sizeof(float)*numCells);
 cudaMalloc(&d_tmp,         sizeof(float)*numCells);   // 追加
 std::vector<float> hSpeedLegacyHost, hSpeedHomeHost;
 
-const int stepsPerFrame = 2;  // Keep HOME and Legacy stepping together every frame
+const int stepsPerFrame = 2;  // 毎フレーム HOME と Legacy のステップを揃える
 auto stepBothSolvers = [&](){
     legacy.step(stepsPerFrame);
     home.step(stepsPerFrame);
@@ -762,7 +762,7 @@ auto stepBothSolvers = [&](){
     int simStep = 0;
     int nextVtkDump = vtkInterval;
     if(vtkEnabled){
-        dumpVtk(0); // initial state
+        dumpVtk(0); // 初期状態
     }
 
     // トレーサ（Legacy / HOME 両方の速度場に1粒子ずつ乗せる）
@@ -790,7 +790,7 @@ auto stepBothSolvers = [&](){
         cudaDeviceSynchronize();
         glm::vec3 u = sampleVel(du,dv,dw,t.pos);
         if(tracerProjectToX){ u.y = 0.0f; u.z = 0.0f; }
-        // 速度は格子単位/step なので [0,1]^3 正規化に換算しつつ強調
+        // 速度は格子単位/ステップ なので [0,1]^3 正規化に換算しつつ強調
         t.pos += tracerVelScale * glm::vec3(u.x / d.Nx, u.y / d.Ny, u.z / d.Nz) * float(stepsPerFrame);
         t.pos = glm::clamp(t.pos, glm::vec3(0.0f), glm::vec3(1.0f));
         t.trail.push_back(t.pos);
@@ -819,7 +819,7 @@ orb.target = cam.target;
 
 // タイトルにヒントを足したい場合（任意）
 // setTitle(win, solverView); の実装を編集できるなら末尾に " [LMB:orbit RMB:zoom]" を足してください。
-    bool toggleProjPrev = false; // tracerProjectToX toggle key (P)
+    bool toggleProjPrev = false; // tracerProjectToX 切り替えキー (P)
     while(!win.shouldClose()){
         // 入力（手法と表示の切替）
         if(glfwGetKey(win.handle(), GLFW_KEY_G) == GLFW_PRESS) { solverView = SolverView::Legacy;  setTitle(win, solverView); }
@@ -838,7 +838,7 @@ orb.target = cam.target;
         }
         toggleProjPrev = (keyP == GLFW_PRESS);
 
-        // Keep HOME and Legacy in lockstep so view switching never desynchronizes steps
+        // 表示切替でステップがずれないよう HOME と Legacy をロックステップで進める
         stepBothSolvers();
         // トレーサ更新（Compare 以外でも毎フレーム両方動かす）
         stepTracer(tracerLegacy, legacy.d_u(), legacy.d_v(), legacy.d_w());
@@ -916,12 +916,12 @@ if (mode == Display::Pressure) {
             }else if(solverView == SolverView::Home || solverView == SolverView::Compare){
                 launch_speed(home.d_u(), home.d_v(), home.d_w(), d_speedHome, numCells);
                 vis.uploadScalar(d_speedHome);
-            }else{ // Hybrid
+            }else{ // ハイブリッド
                 launch_speed(hybrid.d_u(), hybrid.d_v(), hybrid.d_w(), d_speedHome, numCells);
                 vis.uploadScalar(d_speedHome);
             }
         }
-        else { // Error (Compare default: HOME - Legacy)
+        else { // 差分（Compare の既定: HOME - Legacy）
             if(solverView == SolverView::Hybrid){
                 launch_diff(hybrid.d_rho(), legacy.d_rho(), d_diffRho, numCells);
             }else{
@@ -991,10 +991,10 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 // --- 体積（ボリューム）を先に、深度無効で描画 ---
 glDisable(GL_DEPTH_TEST);          // 追加
 float scaleVis =
-    // Error は差分が小さいのでゲインを高めに
+    // 差分は小さいのでゲインを高めに
     (mode == Display::Error) ? 2000.0f :
     (mode == Display::Speed) ? 150.0f :
-                               1000.0f;   // Pressure(ρ-1)はゲイン低めから
+                               1000.0f;   // 圧力(ρ-1)はゲイン低めから
 float alphaCut = 0.15f; // この値未満のボクセルは透明にする
 vis.renderVolume(cam.P, cam.V, cam.pos, 0.005f, scaleVis, alphaCut);
 

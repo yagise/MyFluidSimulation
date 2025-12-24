@@ -45,8 +45,8 @@ def main():
     shape_tag = sys.argv[2]
     out_path = Path(sys.argv[3])
 
-    # Match the naming from run_b0_sweeps.ps1
-    # Example: b0_yourmodel_amr2_thr0p5.csv
+    # run_b0_sweeps.ps1 の命名規則に合わせる
+    # 例: b0_yourmodel_amr2_thr0p5.csv
     pat = re.compile(rf"^b0_{re.escape(shape_tag)}_amr(\\d+)_thr([0-9p]+)\\.csv$")
 
     items = []
@@ -65,7 +65,7 @@ def main():
     if not items:
         raise RuntimeError(f"No CSVs found for shape '{shape_tag}' in {results_dir}")
 
-    # Plot HOME vs Legacy error curves (these will be flat-ish across d0, but differ per AMR run).
+    # HOME vs Legacy の誤差曲線を描画（d0 でほぼフラットだが AMR ごとに差が出る）
     plt.figure()
     for amr, thr, d0, home, hyb, name in sorted(items, key=lambda t: (t[1], t[0])):
         plt.plot(d0, home, marker="o", label=f"HOME (amr={amr}, thr={thr})")
@@ -79,7 +79,7 @@ def main():
     plt.savefig(out_path, dpi=180)
     print("Saved:", out_path)
 
-    # Plot HYBRID(B0) vs Legacy error curves.
+    # HYBRID(B0) vs Legacy の誤差曲線を描画
     out2 = out_path.with_name(out_path.stem + "_hybrid.png")
     plt.figure()
     for amr, thr, d0, home, hyb, name in sorted(items, key=lambda t: (t[1], t[0])):

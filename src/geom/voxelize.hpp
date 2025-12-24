@@ -5,7 +5,7 @@
 #include "stl_loader.hpp"
 
 //
-// voxelize
+// ボクセル化
 //
 // TriangleMesh をセルが solid(1) か fluid(0) かの 3D マスクへ変換する。
 //
@@ -15,9 +15,9 @@
 
 struct VoxelParams {
     int Nx=128, Ny=128, Nz=128;
-    float uniformScale = 0.9f; // fraction of box edge
-    glm::vec3 translate = glm::vec3(0.5f,0.5f,0.5f); // center in unit cube
-    // AMR: supersampling(refine^3) してから被覆率で downsample する。
+    float uniformScale = 0.9f; // ボックス一辺に対する比率
+    glm::vec3 translate = glm::vec3(0.5f,0.5f,0.5f); // 単位立方体の中心
+    // AMR: refine^3 でスーパーサンプリングしてから被覆率でダウンサンプルする。
     // coverageThreshold=0.5 なら半分以上埋まっていれば solid。
     int refine = 1;
     float coverageThreshold = 0.5f;

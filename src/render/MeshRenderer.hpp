@@ -15,7 +15,7 @@ public:
     void setAlpha(float a){ alpha_ = a; }
 
     // viewProj 行列と色を渡してメッシュを描画する
-    void draw(const float* viewProj /* 4x4 column-major */, const float* color /* rgb */);
+    void draw(const float* viewProj /* 4x4 列優先 */, const float* color /* RGB */);
 
 private:
     GLuint vao_ = 0, vbo_ = 0, ebo_ = 0, prog_ = 0;

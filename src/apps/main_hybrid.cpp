@@ -1,6 +1,6 @@
-﻿// main_hybrid.cpp
+// main_hybrid.cpp（ハイブリッドエントリ）
 //
-// 従来法 + HOME 法の Hybrid(B0) を回すための headless 実行ファイル。
+// 従来法 + HOME 法の Hybrid(B0) を回すためのヘッドレス実行ファイル。
 //
 // Hybrid(B0) の定義（このリポジトリにおける意味）:
 // - 壁近傍(dist_to_solid <= d0) : 従来法(Legacy)の衝突
@@ -26,3 +26,4 @@ int main(int argc, char** argv) {
 
     return run_hybrid_b0<LBM3D_Hybrid>(dom, obs, run, hyb);
 }
+

@@ -30,7 +30,7 @@ def to_float(x: str) -> float:
 
 def parse_amr_from_name(name: str):
     """引数や入力を解析する"""
-    # expected something like: b0_shape_amr2_thr0p5.csv
+    # 例: b0_shape_amr2_thr0p5.csv
     m = re.search(r"amr(\d+)", name)
     amr = int(m.group(1)) if m else -1
 
@@ -69,7 +69,7 @@ def main():
     if not files:
         raise RuntimeError(f"No CSV files matching '{shape_tag}' in {results_dir}")
 
-    # output header
+    # 出力ヘッダ
     print(",".join([
         "file","amr_factor","amr_threshold",
         "home_diff",
@@ -84,17 +84,17 @@ def main():
         if not rows:
             continue
 
-        # mean_absdiff_home is the same for every d0 row (HOME baseline). Use first row.
+        # mean_absdiff_home は全 d0 行で同じ（HOME 基準）。先頭行を使う。
         home_diff = to_float(rows[0].get("mean_absdiff_home", "nan"))
 
-        # pick d0 row
+        # d0 行を取得
         hyb_pick = float("nan")
         for r in rows:
             if int(r["d0"]) == pick_d0:
                 hyb_pick = to_float(r.get("mean_absdiff_hybrid", "nan"))
                 break
 
-        # find best d0 achieving target fraction
+        # 目標比率を満たす最小の d0 を探す
         best_d0 = None
         best_ratio = float("nan")
         for r in rows:
@@ -107,7 +107,7 @@ def main():
 
         amr_from_name, thr_from_name = parse_amr_from_name(p.name)
 
-        # Prefer explicit columns (added in v3), but fall back to file name.
+        # 明示列（v3 以降）を優先し、無ければファイル名から推定する。
         amr_col = int(rows[0].get("amr_factor", amr_from_name))
         thr_col = rows[0].get("amr_threshold", None)
         thr_col = float(thr_col) if thr_col is not None else (thr_from_name if thr_from_name is not None else float("nan"))

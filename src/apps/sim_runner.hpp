@@ -1,12 +1,12 @@
-﻿// sim_runner.hpp
+// sim_runner.hpp（実験用ランナー）
 //
 // 従来法 / HOME 法 / Hybrid(B0) を同じ入出力形式で実験できるようにするための
 // 実行ループ共通化ファイルです。
 //
 // ここでは以下を提供します:
-// - run_single_solver<...>() : 単一ソルバ(従来/HOME)を headless で回して VTK を出す
-// - run_hybrid_b0() : Hybrid(B0) を headless で回す
-// - B0 の band(d0) 用に distance-to-solid を BFS で作る処理
+// - run_single_solver<...>() : 単一ソルバ(従来/HOME)をヘッドレスで回して VTK を出す
+// - run_hybrid_b0() : Hybrid(B0) をヘッドレスで回す
+// - B0 のバンド(d0) 用に solid までの距離を BFS で作る処理
 //
 // - 手続き生成の障害物は扱わず、明示された STL だけを使う
 // - 回転体や移動壁などのデバッグ機能はここには入れない
@@ -54,7 +54,7 @@ inline std::vector<int> build_distance_to_solid_6n(const std::vector<unsigned ch
         }
     };
 
-    // BFS
+    // BFS（幅優先探索）
     size_t head = 0;
     while (head < q.size()) {
         const int id = q[head++];
@@ -94,7 +94,7 @@ inline std::vector<unsigned char> build_legacy_mask_from_distance(const std::vec
 // 単一ソルバ実行
 //
 
-// / 単一ソルバ（従来法 or HOME 法）を回す
+// / 単一ソルバ（従来法または HOME 法）を回す
 // /
 // / - 初期条件: run.initMode に従って rho を作り、u=0 として平衡分布へ再初期化
 // / - 外力: dom.fx,fy,fz を Domain にセット（各ソルバ内部で適用）
@@ -135,7 +135,7 @@ inline int run_single_solver(const DomainConfig& domCfg,
     // - 初期条件の作り方を全ソルバで統一するため、
     // rho,u を与えて平衡へAPI を用意している。
     // - Legacy は分布 f_i を平衡に再構成する。
-    // - HOME(moment-encoded) は moments を (rho,u,S=0) で再構成する。
+    // - HOME(モーメント符号化) はモーメントを (rho,u,S=0) で再構成する。
     float* d_rhoInit = build_initial_rho_device(domCfg, runCfg);
     solver.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
     cudaFree(d_rhoInit);
@@ -234,7 +234,7 @@ inline int run_hybrid_b0(const DomainConfig& domCfg,
     solver.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
     cudaFree(d_rhoInit);
 
-    // VTK
+// VTK 出力
     auto vtkDirOpt = prepare_vtk_dir(runCfg);
     float* d_speed = nullptr;
     if (vtkDirOpt.has_value()) cudaMalloc(&d_speed, sizeof(float) * static_cast<size_t>(N));
@@ -268,3 +268,4 @@ inline int run_hybrid_b0(const DomainConfig& domCfg,
     if (d_speed) cudaFree(d_speed);
     return 0;
 }
+

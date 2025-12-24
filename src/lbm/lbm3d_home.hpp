@@ -9,7 +9,7 @@
 // このクラスの目的（今回の修正）:
 // - 分布関数 f_i(19)×2 バッファではなく、
 // 0〜2次モーメント（rho,u,S）を 10 変数/セル ×2 バッファで保持する。
-// - その上で、D3Q19 / 静止壁 bounce-back / 簡易外力 など
+// - その上で、D3Q19 / 静止壁バウンスバック / 簡易外力 など
 // 既存の比較条件は極力変えずに動くようにする。
 
 class LBM3D_Home {
@@ -18,16 +18,16 @@ public:
     ~LBM3D_Home();
     // サイズ・緩和時間・外力を Domain から受け取り、デバイスメモリを初期化
     void init(const Domain& d);
-    // ホスト側マスクをデバイスにコピー（1:solid, 0:fluid）
+    // ホスト側マスクをデバイスにコピー（1:固体, 0:流体）
     void setSolidMask(const unsigned char* h_mask);
     // rho=1, u=0 の平衡状態で全セルを埋める
     void reset();
-    // 既存の密度・速度場から moments バッファを平衡に再構成
+    // 既存の密度・速度場からモーメントバッファを平衡に再構成
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
-    // collide + stream を substeps 回進める
+    // 衝突 + ストリーミングを substeps 回進める
     void step(int substeps = 1);
     // 簡易外力（速度に加算する形）を設定
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
@@ -54,7 +54,7 @@ private:
     float tau_ = 0.6f;
     float fx_=0.0f, fy_=0.0f, fz_=0.0f;
 
-    // moments-only バッファ（SoA）
+    // モーメントのみバッファ（SoA）
     // m[ 0*N + id] = rho
     // m[ 1*N + id] = ux
     // m[ 2*N + id] = uy
@@ -66,7 +66,7 @@ private:
     // m[ 8*N + id] = Syz
     // m[ 9*N + id] = Szz
     //
-    // 2バッファにして stream 後に swap する。
+    // 2バッファにしてストリーミング後にスワップする。
     float* d_m_     = nullptr;
     float* d_mnext_ = nullptr;
 

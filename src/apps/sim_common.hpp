@@ -1,9 +1,9 @@
-﻿// sim_common.hpp
+// sim_common.hpp（共通ユーティリティ）
 //
 // 共通ユーティリティです。
 //
 // 目的:
-// - 各手法の main を分離しつつ、引数処理・障害物(voxelize)・VTK 出力などを共通化する
+// - 各手法の main を分離しつつ、引数処理・障害物（ボクセル化）・VTK 出力などを共通化する
 // - デバッグ用の自動モデル挿入（手続き生成モデルを勝手に入れる等）は行わない
 // - 任意の STL モデルで実験できるようにする
 //
@@ -60,18 +60,18 @@ struct DomainConfig {
     float fz = 0.0f;
 };
 
-// / 障害物（STL or 手続き生成）に関する設定
+// / 障害物（STL または手続き生成）に関する設定
 struct ObstacleConfig {
     // 入力モデル
     std::string stlPath;         ///< --stl で指定された STL
 
-    // voxelize
+    // ボクセル化
     float uniformScale = 0.5f;   ///< 単位立方体[0,1]^3 に収めるためのスケール
     float translateX = 0.5f;     ///< 位置合わせ（中心）
     float translateY = 0.5f;
     float translateZ = 0.5f;
-    int amrFactor = 1;           ///< supersampling
-    float amrThreshold = 0.5f;   ///< coarse cell を solid と判定する占有率
+    int amrFactor = 1;           ///< スーパーサンプリング
+    float amrThreshold = 0.5f;   ///< 粗いセルを solid と判定する占有率
 };
 
 // / 実行ステップや VTK 出力設定
@@ -82,9 +82,9 @@ struct RunConfig {
     int vtkEvery = 0;    ///< 0 なら無効
 
     // 初期条件（必要な人だけ）
-    // - none : rho=1, u=0
-    // - gauss : rho=1+gaussian
-    // - slab : rho=1+slab
+    // - none : rho=1, u=0（一様）
+    // - gauss : rho=1+ガウス分布
+    // - slab : rho=1+スラブ状
     std::string initMode = "none";
     float amp = 1e-3f;
     float sigma = 0.08f;
@@ -94,16 +94,16 @@ struct RunConfig {
     float slabWidth = 0.2f;
 };
 
-// / B0（従来法+HOME）の band 設定
+// / B0（従来法+HOME）のバンド設定
 struct HybridConfig {
     int bandD0 = 2;  ///< dist_to_solid <= d0 のセルを Legacy として扱う
 };
 
-// / voxelize 後に得られる障害物データ
+// / ボクセル化後に得られる障害物データ
 struct ObstacleData {
     bool hasObstacle = false;
     TriangleMesh mesh;
-    std::vector<unsigned char> solidMask;  ///< size = Nx*Ny*Nz
+    std::vector<unsigned char> solidMask;  ///< サイズ = Nx*Ny*Nz
 };
 
 //
@@ -175,7 +175,7 @@ inline void parse_common_args(int argc, char** argv,
         else if (a == "--width" && need(1)) run.slabWidth = std::stof(argv[++i]);
         else if (a == "--slab-center" && need(1)) run.slabCenter = std::stof(argv[++i]);
 
-        // --- Hybrid (B0) ---
+        // --- ハイブリッド (B0) ---
         else if ((a == "--hybrid-band" || a == "--hybrid-d0") && need(1)) {
             // Hybrid 実行のときだけ有効。従来法/HOME の main では hyb==nullptr のまま。
             const int v = std::max(0, std::stoi(argv[++i]));
@@ -192,7 +192,7 @@ inline void parse_common_args(int argc, char** argv,
 }
 
 //
-// 障害物ロード / voxelize
+// 障害物ロード / ボクセル化
 //
 // 入力データを読み込む
 inline std::optional<TriangleMesh> load_obstacle_mesh(const ObstacleConfig& obs) {
@@ -281,3 +281,4 @@ inline std::optional<std::filesystem::path> prepare_vtk_dir(const RunConfig& run
     }
     return p;
 }
+

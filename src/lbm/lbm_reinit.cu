@@ -1,7 +1,7 @@
 ﻿#include <cuda_runtime.h>
 #include "lbm_layout.hpp"
 
-// --- D3Q19 (cs^2 = 1/3)
+// --- D3Q19（cs^2 = 1/3）
 // 0:(0,0,0)
 // 1:(+1,0,0) 2:(-1,0,0) 3:(0,+1,0) 4:(0,-1,0) 5:(0,0,+1) 6:(0,0,-1)
 // 7:(+1,+1,0) 8:(-1,+1,0) 9:(+1,-1,0) 10:(-1,-1,0)
@@ -48,7 +48,7 @@ __global__ void kern_reinit_eq(const float*  rho,
         f[fIndex(q,i,N)] = feq;
     }
 }
-// Host 呼び出し用ラッパー: デバイス上の macro 量から f を平衡に戻す
+// ホスト呼び出し用ラッパー: デバイス上のマクロ量から f を平衡に戻す
 extern "C" void reinit_equilibrium_from_macro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,

@@ -100,7 +100,7 @@ static void apply_initial_fields(const Config& cfg,
     CUDA_CHECK(cudaMemcpy(solver.d_v(),   uy.data(),  bytesScalar, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(solver.d_w(),   uz.data(),  bytesScalar, cudaMemcpyHostToDevice));
 
-    // 平衡状態へ（HOME は moments-only なので内部で (rho,u,S=0) を作る）
+    // 平衡状態へ（HOME はモーメントのみなので内部で (rho,u,S=0) を作る）
     solver.reinitEquilibriumFromMacro(solver.d_rho(), solver.d_u(), solver.d_v(), solver.d_w());
 }
 static void initialize_solvers(const Config& cfg, LBM3D_Legacy& legacy, LBM3D_Home& home) {

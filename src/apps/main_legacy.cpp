@@ -1,6 +1,6 @@
-﻿// main_legacy.cpp
+// main_legacy.cpp（従来法エントリ）
 //
-// 従来法（Legacy/BGK）単体を回すための headless 実行ファイル。
+// 従来法（Legacy/BGK）単体を回すためのヘッドレス実行ファイル。
 //
 // - 従来法 / HOME / Hybrid(B0) をそれぞれ別ファイルの main として分離する
 // - 手続き生成の障害物は扱わない（必要なら --stl を明示）
@@ -21,3 +21,4 @@ int main(int argc, char** argv) {
 
     return run_single_solver<LBM3D_Legacy>(dom, obs, run, "legacy");
 }
+

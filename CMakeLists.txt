@@ -102,7 +102,7 @@ if(FLUIDSIM_BUILD_GUI)
 endif()
 
 # -----------------------------------------------------------------------------
-# 論文用: 手法ごとの headless 実行バイナリ
+# 論文用: 手法ごとのヘッドレス実行バイナリ
 #   - fluidsim_legacy : 従来法(BGK)
 #   - fluidsim_home   : HOME 法
 #   - fluidsim_hybrid : 従来法 + HOME(B0)

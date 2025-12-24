@@ -111,13 +111,13 @@ bool load_stl(const std::string& path, TriangleMesh& out){
         std::istringstream is(s);
         if(parse_ascii(is, out)) return true;
 
-        // fall back to binary if ascii failed
+        // ASCII で失敗した場合は Binary にフォールバック
         std::ifstream fb(path, std::ios::binary);
         if(!fb) return false;
         return parse_binary(fb, out);
     }
 
-    // binary
+    // バイナリ
     return parse_binary(f, out);
 }
 // 滴型の手続きメッシュを生成する（テスト用）
@@ -127,7 +127,7 @@ TriangleMesh make_teardrop(unsigned nu, unsigned nv){
     m.bbmax = glm::vec3( -std::numeric_limits<float>::max() );
     auto id = [nu](unsigned i,unsigned j){ return j*(nu+1)+i; };
 
-    // parametric surface
+    // パラメトリック曲面
     std::vector<glm::vec3> grid; grid.reserve((nu+1)*(nv+1));
     for(unsigned j=0;j<=nv;++j){
         float v = (float)j/nv;
@@ -142,7 +142,7 @@ TriangleMesh make_teardrop(unsigned nu, unsigned nv){
         }
     }
 
-    // triangles (two per quad)
+    // 三角形分割（四角形あたり2枚）
     for(unsigned j=0;j<nv;++j){
         for(unsigned i=0;i<nu;++i){
             glm::vec3 v0 = grid[id(i,  j)];
@@ -163,7 +163,7 @@ TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness)
     m.bbmax = glm::vec3( -std::numeric_limits<float>::max() );
 
     const unsigned rimSeg = 64;
-    // hub disk
+    // ハブの円板
     unsigned base = (unsigned)m.positions.size();
     m.positions.push_back(glm::vec3(0,0,0));
     for(unsigned i=0;i<rimSeg;++i){
@@ -176,7 +176,7 @@ TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness)
         m.indices.insert(m.indices.end(), {a,b,c});
     }
 
-    // blades
+    // 羽根
     for(unsigned b=0;b<blades;++b){
         float ang = (float)b/blades * 2.0f*3.14159265f;
         float tilt = 0.3f;
@@ -188,7 +188,7 @@ TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness)
         m.indices.insert(m.indices.end(), {baseB+0,baseB+1,baseB+2});
     }
 
-    // bounds
+    // 境界ボックス
     for(const auto& p : m.positions){ update_bb(m.bbmin, m.bbmax, p); }
     return m;
 }

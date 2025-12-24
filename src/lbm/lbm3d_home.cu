@@ -5,7 +5,7 @@
 LBM3D_Home::~LBM3D_Home(){ release(); }
 
 //
-// HOME(moments-only) 実装
+// HOME（モーメントのみ）実装
 //
 // 保存する量（1セルあたり10変数）:
 // rho, (ux,uy,uz), Sxx,Sxy,Sxz,Syy,Syz,Szz
@@ -13,7 +13,7 @@ LBM3D_Home::~LBM3D_Home(){ release(); }
 //
 // f_i は保存しない。
 // ストリーミングで必要になる f_i^* は (rho,u,S) から
-// 2次までの regularized 形式でその場再構成する。
+// 2次までの正則化形式でその場再構成する。
 //
 
 // D3Q19 の標準順序（lbm3d_legacy.cu と同じ）
@@ -33,7 +33,7 @@ __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
 }
 
 //
-// moments <-> distribution 再構成（2次まで）
+// モーメント <-> 分布の再構成（2次まで）
 __device__ __forceinline__ static float reconstruct_f_post(
     int q,
     float rho,
@@ -58,7 +58,7 @@ __device__ __forceinline__ static float reconstruct_f_post(
     const float uu = ux*ux + uy*uy + uz*uz;
     const float feq = w * rho * (1.0f + 3.0f*eu + 4.5f*eu*eu - 1.5f*uu);
 
-    // --- 2次の non-equilibrium（regularized）---
+    // --- 2次の非平衡（正則化）---
     // fneq_i = (w_i / (2 cs^4)) * ( (e_i e_i - cs^2 I) : Pi^neq )
     // cs^2 = 1/3 => 1/(2 cs^4) = 9/2 = 4.5
     const float cs2 = 1.0f/3.0f;
@@ -76,10 +76,10 @@ __device__ __forceinline__ static float reconstruct_f_post(
 
     const float fneq = 4.5f * w * contraction;
 
-    // 衝突後（streaming に流す値）
+    // 衝突後（ストリーミングに流す値）
     return feq + oneMinusOmega * fneq;
 }
-// rho=1, u=0, S=0 で moments バッファを初期化する
+// rho=1, u=0, S=0 でモーメントバッファを初期化する
 __global__ static void kern_reset_mom(float* m, float* mnext,
                                       int Nx,int Ny,int Nz)
 {
@@ -98,14 +98,14 @@ __global__ static void kern_reset_mom(float* m, float* mnext,
     m[3*N + id] = 0.0f;
     for(int k=4;k<10;++k) m[k*N + id] = 0.0f;
 
-    // 次バッファも同じで埋めておく（初回 step の安定用）
+    // 次バッファも同じで埋めておく（初回ステップの安定用）
     mnext[0*N + id] = 1.0f;
     mnext[1*N + id] = 0.0f;
     mnext[2*N + id] = 0.0f;
     mnext[3*N + id] = 0.0f;
     for(int k=4;k<10;++k) mnext[k*N + id] = 0.0f;
 }
-// ホストから与えられた密度・速度場を moments バッファにコピー
+// ホストから与えられた密度・速度場をモーメントバッファにコピー
 __global__ static void kern_reinit_from_macro(float* m, float* mnext,
                                               const float* rhoIn,
                                               const float* uxIn,
@@ -137,8 +137,8 @@ __global__ static void kern_reinit_from_macro(float* m, float* mnext,
 }
 
 //
-// collide + stream（gather）
-// moments だけを保存した状態で BGK 緩和 + bounce-back を行うメインカーネル
+// 衝突 + ストリーミング（ギャザー）
+// モーメントだけを保存した状態で BGK 緩和 + バウンスバック を行うメインカーネル
 __global__ static void kern_step_moments_only(const float* m, float* mnext,
                                               const unsigned char* solid,
                                               int Nx,int Ny,int Nz,
@@ -153,7 +153,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
     const int N  = Nx*Ny*Nz;
     const int id = index3D(ix,iy,iz,Nx,Ny);
 
-    // components
+    // 成分配列
     const float* rhoA = m + 0*N;
     const float* uxA  = m + 1*N;
     const float* uyA  = m + 2*N;
@@ -187,7 +187,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
         return;
     }
 
-    // bounce-back 用に自セルの moments を取っておく
+    // バウンスバック用に自セルのモーメントを取っておく
     const float rhoC = rhoA[id];
     const float uxC0 = uxA[id];
     const float uyC0 = uyA[id];
@@ -201,7 +201,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
 
     const float oneMinusOmega = 1.0f - omega;
 
-    // incoming 分布からマクロ量を計算
+    // 流入分布からマクロ量を計算
     float r = 0.0f;
     float jx = 0.0f, jy = 0.0f, jz = 0.0f;
     float Mxx = 0.0f, Mxy = 0.0f, Mxz = 0.0f;
@@ -209,7 +209,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
 
     #pragma unroll
     for(int q=0;q<19;++q){
-        // source cell = x - e_q
+        // 参照元セル = x - e_q
         const int xs = (ix - cx19_h[q] + Nx) % Nx;
         const int ys = (iy - cy19_h[q] + Ny) % Ny;
         const int zs = (iz - cz19_h[q] + Nz) % Nz;
@@ -224,7 +224,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
                                     SxxC, SxyC, SxzC, SyyC, SyzC, SzzC,
                                     oneMinusOmega);
         }else{
-            // 通常: 近傍セルの post-collision 分布が流入
+            // 通常: 近傍セルの衝突後分布が流入
             fq = reconstruct_f_post(q,
                                     rhoA[ids], uxA[ids], uyA[ids], uzA[ids],
                                     SxxA[ids], SxyA[ids], SxzA[ids], SyyA[ids], SyzA[ids], SzzA[ids],
@@ -317,13 +317,13 @@ void LBM3D_Home::reset(){
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-// 既存の密度・速度場から moments バッファを再構成する
+// 既存の密度・速度場からモーメントバッファを再構成する
 void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
                                             const float* d_ux,
                                             const float* d_uy,
                                             const float* d_uz)
 {
-    // NOTE: solidMask はここでは変更しない。
+    // 注: solidMask はここでは変更しない。
     const int N = N_;
     dim3 bs(256);
     dim3 gs((N + bs.x - 1) / bs.x);
@@ -331,7 +331,7 @@ void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-// collide + stream を substeps 回実行するメインループ
+// 衝突 + ストリーミングを substeps 回実行するメインループ
 void LBM3D_Home::step(int substeps){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -345,7 +345,7 @@ void LBM3D_Home::step(int substeps){
                                           fx_, fy_, fz_);
         CUDA_CHECK(cudaGetLastError());
 
-        // swap（ポインタの入れ替え）
+        // スワップ（ポインタの入れ替え）
         float* tmp = d_m_;
         d_m_ = d_mnext_;
         d_mnext_ = tmp;

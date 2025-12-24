@@ -8,7 +8,7 @@ LBM3D_Hybrid::~LBM3D_Hybrid(){ release(); }
 // 正式版の B0 実装（フル f、セル単位で Legacy/HOME を切り替え）
 //
 // d_isLegacy_ マスクに応じて Legacy か HOME の衝突をセル単位で選ぶハイブリッドカーネル。
-// ストリーミングと bounce-back は Legacy/Home と同じ扱いで、比較実験用の実装（メモリ節約版ではない）。
+// ストリーミングとバウンスバックは Legacy/Home と同じ扱いで、比較実験用の実装（メモリ節約版ではない）。
 // 方向の並びは lbm3d_legacy.cu / lbm3d_home.cu と一致させる。
 
 // D3Q19 の標準的な並び:
@@ -104,13 +104,13 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
     int id = index3D(ix,iy,iz,Nx,Ny);
 
     if(solid[id]){
-        // Keep solid f unchanged (like legacy/home), and clamp macros.
+        // solid セルの f は変更せず（Legacy/HOME と同様）、マクロ量を固定する。
         for(int q=0;q<19;++q) fnext[q*N + id] = f[q*N + id];
         rho[id]=1.0f; ux[id]=uy[id]=uz[id]=0.0f;
         return;
     }
 
-    // Macro compute (same as legacy/home)
+    // マクロ量の計算（Legacy/HOME と同じ）
     float r=0, jx=0, jy=0, jz=0;
     for(int q=0;q<19;++q){
         float fq = f[q*N + id];
@@ -125,7 +125,7 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
     float uz0 = (r>0.0f) ? (jz/r) : 0.0f;
     ux0 += fx; uy0 += fy; uz0 += fz;
 
-    // Precompute equilibrium for all q.
+    // 全 q の平衡分布を事前計算
     float uu = ux0*ux0 + uy0*uy0 + uz0*uz0;
     float feq[19];
     #pragma unroll
@@ -136,17 +136,17 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
 
     const bool useLegacy = (isLegacy != nullptr) ? (isLegacy[id] != 0) : false;
 
-    // Collide + stream (push), identical bounce-back handling.
+    // 衝突 + ストリーミング（プッシュ）。バウンスバックは同一処理。
     for(int q=0;q<19;++q){
         const float fq = f[q*N + id];
         float fpost;
 
         if(useLegacy){
-            // Legacy BGK
+            // Legacy の BGK
             fpost = fq + omegaLegacy*(feq[q] - fq);
         }else{
-            // HOME collide (same algebraic form as LBM3D_Home)
-            // Keep it explicit for future modifications.
+            // HOME の衝突（LBM3D_Home と同じ代数形）
+            // 将来の変更に備えて明示的に書く。
             float dh = feq[q];
             float ds = fq - feq[q];
             fpost = fq + omegaHydro*(dh - fq) + (omegaShear - omegaHydro) * (-ds);
@@ -163,7 +163,7 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
             int qo = opp19(q);
             fnext[qo*N + id] = fpost;
         }else{
-            // Normal streaming
+            // 通常ストリーミング
             fnext[q*N + id2] = fpost;
         }
     }
@@ -180,7 +180,7 @@ __global__ static void kern_swap(float* a, float* b, int n){
 }
 
 //
-// LBM3D_Hybrid methods
+// LBM3D_Hybrid のメソッド
 //
 // 必要なデバイスメモリを確保する
 void LBM3D_Hybrid::allocate(){
@@ -213,10 +213,10 @@ void LBM3D_Hybrid::init(const Domain& d, int /*nLegacyCells*/){
     fx_  = d.forceX; fy_ = d.forceY; fz_ = d.forceZ;
     allocate();
 
-    // Default: no legacy cells => pure HOME behavior.
+    // 既定: Legacy セルなし => 純粋な HOME 挙動。
     CUDA_CHECK(cudaMemset(d_isLegacy_, 0, sizeof(unsigned char)*N_));
 
-    // Reset (safe even before solid mask is uploaded)
+    // リセット（solid マスク未転送でも安全）
     reset();
 }
 // 固体マスクをデバイスへ送る

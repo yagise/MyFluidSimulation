@@ -1,6 +1,6 @@
-﻿// main_home.cpp
+// main_home.cpp（HOME 法エントリ）
 //
-// HOME 法単体を回すための headless 実行ファイル。
+// HOME 法単体を回すためのヘッドレス実行ファイル。
 //
 // - HOME 法は論文の記述に忠実な最小構成で実行できるようにする
 // - 回転体・移動壁・デバッグ用自動モデル投入などは行わない
@@ -18,3 +18,4 @@ int main(int argc, char** argv) {
     parse_common_args(argc, argv, dom, obs, run, nullptr);
     return run_single_solver<LBM3D_Home>(dom, obs, run, "home");
 }
+
