@@ -1,28 +1,17 @@
-#include "lbm3d_hybrid.hpp"
+﻿#include "lbm3d_hybrid.hpp"
 #include "../common/cuda_utils.hpp"
 #include <cmath>
-
-// summary: 確保したメモリを解放する
-// param: なし
-// return: なし
+// 確保したメモリを解放する
 LBM3D_Hybrid::~LBM3D_Hybrid(){ release(); }
 
 //
-// Correct B0 implementation (full-f, cell-wise switch)
+// 正式版の B0 実装（フル f、セル単位で Legacy/HOME を切り替え）
 //
-// This file implements a hybrid collide-stream kernel that chooses between:
-// - Legacy collision (BGK)
-// - HOME collision (moment/regularized style in LBM3D_Home)
-// per-cell according to a mask d_isLegacy_[id].
-//
-// IMPORTANT:
-// - We keep the *streaming* and *bounce-back* identical to Legacy/Home.
-// - This file is meant for *fair comparison* experiments.
-// - It is not the memory-saving "moment-cache" hybrid.
-//
-// Direction ordering must match lbm3d_legacy.cu / lbm3d_home.cu.
+// d_isLegacy_ マスクに応じて Legacy か HOME の衝突をセル単位で選ぶハイブリッドカーネル。
+// ストリーミングと bounce-back は Legacy/Home と同じ扱いで、比較実験用の実装（メモリ節約版ではない）。
+// 方向の並びは lbm3d_legacy.cu / lbm3d_home.cu と一致させる。
 
-// Standard D3Q19 ordering:
+// D3Q19 の標準的な並び:
 // 0:(0,0,0)
 // 1:(+1,0,0) 2:(-1,0,0) 3:(0,+1,0) 4:(0,-1,0) 5:(0,0,+1) 6:(0,0,-1)
 // 7:(+1,+1,0) 8:(-1,+1,0) 9:(+1,-1,0) 10:(-1,-1,0)
@@ -35,49 +24,22 @@ __device__ __constant__ float w19_b0[19] = {1.0f/3.0f,
     1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f};
-
-// summary: opp19 の処理を行う
-// param i: 入力パラメータ
-// return: 戻り値
+// 方向 q の反対方向インデックスを返す
 __device__ __forceinline__ static int opp19(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
-
-// summary: index3D の処理を行う
-// param x: 入力パラメータ
-// param y: 入力パラメータ
-// param z: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// return: 戻り値
+// 3D グリッドを一次元インデックスに変換する
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
-
-// summary: feq19 の処理を行う
-// param q: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// return: 戻り値
+// D3Q19 の平衡分布 feq(q) を計算する
 __device__ __forceinline__ static float feq19(int q, float rho, float ux, float uy, float uz){
     float eiu = cx19_b0[q]*ux + cy19_b0[q]*uy + cz19_b0[q]*uz;
     float uu = ux*ux + uy*uy + uz*uz;
     return w19_b0[q]*rho*(1.0f + 3.0f*eiu + 4.5f*eiu*eiu - 1.5f*uu);
 }
-
-// summary: kern_reset の処理を行う
-// param f: 入力パラメータ
-// param rho: 入力パラメータ
-// param u: 入力パラメータ
-// param v: 入力パラメータ
-// param w: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// 分布関数とマクロ量を平衡状態へリセットする
 __global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
@@ -92,21 +54,7 @@ __global__ static void kern_reset(float* f, float* rho, float* u, float* v, floa
         f[q*N + id] = w19_b0[q] * r;
     }
 }
-
-// summary: kern_reinit_equilibrium の処理を行う
-// param rhoIn: 入力パラメータ
-// param uxIn: 入力パラメータ
-// param uyIn: 入力パラメータ
-// param uzIn: 入力パラメータ
-// param f: 入力パラメータ
-// param rhoOut: 入力パラメータ
-// param uxOut: 入力パラメータ
-// param uyOut: 入力パラメータ
-// param uzOut: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// マクロ入力(rho,u)から平衡分布 feq を構築し直す
 __global__ static void kern_reinit_equilibrium(const float* rhoIn,
                                                const float* uxIn,
                                                const float* uyIn,
@@ -137,26 +85,7 @@ __global__ static void kern_reinit_equilibrium(const float* rhoIn,
         f[q*N + id] = feq19(q, r, ux, uy, uz);
     }
 }
-
-// summary: kern_collide_stream_b0 の処理を行う
-// param f: 入力パラメータ
-// param fnext: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param solid: 入力パラメータ
-// param isLegacy: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param omegaLegacy: 入力パラメータ
-// param omegaHydro: 入力パラメータ
-// param omegaShear: 入力パラメータ
-// param fx: 入力パラメータ
-// param fy: 入力パラメータ
-// param fz: 入力パラメータ
-// return: なし
+// Legacy/HOME をセル単位で切り替えつつ衝突・ストリーミングを行う
 __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
                                               float* rho, float* ux, float* uy, float* uz,
                                               const unsigned char* solid,
@@ -229,7 +158,6 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
         int id2 = index3D(x2,y2,z2,Nx,Ny);
 
         if(solid[id2]){
-            // 論文用整理:
             // Hybrid(B0) でも移動壁の補正は不要。
             // 反射(バウンスバック)のみを適用する。
             int qo = opp19(q);
@@ -245,12 +173,7 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
     uy[id]  = uy0;
     uz[id]  = uz0;
 }
-
-// summary: kern_swap の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// param n: 入力パラメータ
-// return: なし
+// 2 本の配列を要素ごとに入れ替える
 __global__ static void kern_swap(float* a, float* b, int n){
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i<n){ float t=a[i]; a[i]=b[i]; b[i]=t; }
@@ -259,10 +182,7 @@ __global__ static void kern_swap(float* a, float* b, int n){
 //
 // LBM3D_Hybrid methods
 //
-
-// summary: 必要なメモリを確保する
-// param: なし
-// return: 戻り値
+// 必要なデバイスメモリを確保する
 void LBM3D_Hybrid::allocate(){
     const int N = N_;
     CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19ull*N));
@@ -274,10 +194,7 @@ void LBM3D_Hybrid::allocate(){
     CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));
     CUDA_CHECK(cudaMalloc(&d_isLegacy_, sizeof(unsigned char)*N));
 }
-
-// summary: 確保したメモリを解放する
-// param: なし
-// return: 戻り値
+// 確保したデバイスメモリを解放する
 void LBM3D_Hybrid::release(){
     cudaFree(d_f_); d_f_=nullptr;
     cudaFree(d_fnext_); d_fnext_=nullptr;
@@ -289,11 +206,7 @@ void LBM3D_Hybrid::release(){
     cudaFree(d_isLegacy_); d_isLegacy_=nullptr;
     Nx_=Ny_=Nz_=N_=0;
 }
-
-// summary: 初期化処理を行う
-// param d: 入力パラメータ
-// param nLegacyCells: 入力パラメータ
-// return: 戻り値
+// ドメイン設定と外力を反映してバッファを初期化する
 void LBM3D_Hybrid::init(const Domain& d, int /*nLegacyCells*/){
     Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
     tau_ = d.tau;
@@ -306,18 +219,11 @@ void LBM3D_Hybrid::init(const Domain& d, int /*nLegacyCells*/){
     // Reset (safe even before solid mask is uploaded)
     reset();
 }
-
-// summary: setSolidMask の処理を行う
-// param h_mask: 入力パラメータ
-// return: 戻り値
+// 固体マスクをデバイスへ送る
 void LBM3D_Hybrid::setSolidMask(const unsigned char* h_mask){
     CUDA_CHECK(cudaMemcpy(d_solid_, h_mask, sizeof(unsigned char)*N_, cudaMemcpyHostToDevice));
 }
-
-// summary: setLegacyMapping の処理を行う
-// param h_isLegacy: 入力パラメータ
-// param h_legacySlot_ignored: 入力パラメータ
-// return: 戻り値
+// Legacy 領域マスクを設定する（未指定なら全セル HOME）
 void LBM3D_Hybrid::setLegacyMapping(const unsigned char* h_isLegacy,
                                     const int* /*h_legacySlot_ignored*/)
 {
@@ -327,10 +233,7 @@ void LBM3D_Hybrid::setLegacyMapping(const unsigned char* h_isLegacy,
         CUDA_CHECK(cudaMemset(d_isLegacy_, 0, sizeof(unsigned char)*N_));
     }
 }
-
-// summary: reset の処理を行う
-// param: なし
-// return: 戻り値
+// 分布関数とマクロ量を平衡状態にリセットする
 void LBM3D_Hybrid::reset(){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -338,13 +241,7 @@ void LBM3D_Hybrid::reset(){
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: reinitEquilibriumFromMacro の処理を行う
-// param d_rho: 入力パラメータ
-// param d_ux: 入力パラメータ
-// param d_uy: 入力パラメータ
-// param d_uz: 入力パラメータ
-// return: 戻り値
+// 与えられたマクロ量(rho,u)から feq を再構築する
 void LBM3D_Hybrid::reinitEquilibriumFromMacro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,
@@ -358,10 +255,7 @@ void LBM3D_Hybrid::reinitEquilibriumFromMacro(const float* d_rho,
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: step の処理を行う
-// param substeps: 入力パラメータ
-// return: 戻り値
+// substeps 回だけ Hybrid(B0) のステップを進める
 void LBM3D_Hybrid::step(int substeps){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);

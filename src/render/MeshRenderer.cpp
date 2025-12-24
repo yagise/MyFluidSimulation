@@ -1,11 +1,8 @@
-
+﻿
 #include "MeshRenderer.hpp"
 #include <stdexcept>
 
-// summary: compile の処理を行う
-// param type: 入力パラメータ
-// param src: 入力パラメータ
-// return: 戻り値
+// 小さなユーティリティ: シェーダをコンパイルしてハンドルを返す
 static GLuint compile(GLenum type, const char* src){
     GLuint s = glCreateShader(type);
     glShaderSource(s,1,&src,nullptr);
@@ -22,9 +19,6 @@ static const char* vsrc =
     "#version 330 core\n"
     "layout(location=0) in vec3 aPos; \n"
     "uniform mat4 uVP; \n"
-    // summary: vec4 の処理を行う
-    // param: なし
-    // return: 戻り値
     "void main(){ gl_Position = uVP * vec4(aPos, 1.0); }"; 
 
 static const char* fsrc =
@@ -32,14 +26,9 @@ static const char* fsrc =
     "out vec4 frag;\n"
     "uniform vec3 uColor;\n"
     "uniform float uAlpha;\n"
-    // summary: vec4 の処理を行う
-    // param: なし
-    // return: 戻り値
     "void main(){ frag = vec4(uColor, uAlpha); }";
 
-// summary: ~MeshRenderer の処理を行う
-// param: なし
-// return: 戻り値
+// VAO/VBO/EBO/プログラムを破棄する
 MeshRenderer::~MeshRenderer(){
     if(ebo_) glDeleteBuffers(1,&ebo_);
     if(vbo_) glDeleteBuffers(1,&vbo_);
@@ -47,10 +36,7 @@ MeshRenderer::~MeshRenderer(){
     if(prog_) glDeleteProgram(prog_);
 }
 
-// summary: upload の処理を行う
-// param positions: 入力パラメータ
-// param indices: 入力パラメータ
-// return: 戻り値
+// 頂点・インデックスバッファを作成し、属性をセットアップする
 void MeshRenderer::upload(const std::vector<glm::vec3>& positions,
                           const std::vector<unsigned>& indices){
     if(!prog_){
@@ -72,10 +58,7 @@ void MeshRenderer::upload(const std::vector<glm::vec3>& positions,
     indexCount_ = (GLsizei)indices.size();
 }
 
-// summary: 描画処理を行う
-// param viewProj: 入力パラメータ
-// param color: 入力パラメータ
-// return: 戻り値
+// 透過ブレンド付きでメッシュを描画する
 void MeshRenderer::draw(const float* viewProj, const float* color){
     if(!prog_ || indexCount_==0) return;
     glUseProgram(prog_);

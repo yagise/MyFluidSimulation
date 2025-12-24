@@ -1,15 +1,11 @@
-
+﻿
 #define GLFW_INCLUDE_NONE
 #include "window.hpp"
 #include <stdexcept> 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-// summary: h_ の処理を行う
-// param w_: 入力パラメータ
-// param w_: 入力パラメータ
-// param h_: 入力パラメータ
-// return: 戻り値
+// GLFW 初期化と GLAD ロードまでを行う。以降のレンダラはこのコンテキストを前提にする。
 Window::Window(int w_, int h_) : w_(w_), h_(h_) {
     if (!glfwInit()) throw std::runtime_error("glfwInit failed");
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -23,13 +19,9 @@ Window::Window(int w_, int h_) : w_(w_), h_(h_) {
 
     glViewport(0, 0, w_, h_);
 }
-
-// summary: glfwWindowShouldClose の処理を行う
-// param: なし
-// return: 戻り値
+// ウィンドウが閉じるべきかを問い合わせる
 bool Window::shouldClose() const { return glfwWindowShouldClose(handle_); }
-// summary: glfwSwapBuffers の処理を行う
-// param: なし
-// return: 戻り値
+// バックバッファをフロントへスワップする
 void Window::swap() const        { glfwSwapBuffers(handle_); }
+// GLFW 終了処理（コンテキスト破棄）
 Window::~Window()                { glfwTerminate(); }

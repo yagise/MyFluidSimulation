@@ -38,17 +38,15 @@
 - `--tau <float>`
   - 緩和時間（既定: 0.58）
 - `--force <fx> <fy> <fz>`
-  - 外力（既定: `fx=3e-6, fy=0, fz=0`）
+  - 外力（既定: `fx=0, fy=0, fz=0`）
 - `--force-x <fx>` / `--force-y <fy>` / `--force-z <fz>`
 
-#### 障害物（STL/手続き生成）
+#### 障害物（STL）
 
 > デフォルトは **障害物なし**です。必要なら必ず明示してください。
 
 - `--stl <path>`
   - STL を読み込んで障害物にする
-- `--fan` / `--teardrop`
-  - 手続き生成モデルを使う（明示したときだけ）
 
 voxelize 関連（必要なら調整）:
 
@@ -118,7 +116,7 @@ voxelize 関連（必要なら調整）:
 
 主な引数（抜粋）:
 
-- `--stl <path>` / `--fan` / `--teardrop`
+- `--stl <path>`
 - `--amr` / `--amr-factor <n>` / `--amr-threshold <0..1>`
 - `--init none|gauss|slab` + `--amp` 等（初期条件）
 - `--vtk-dir <dir>` + `--vtk-every <n>`

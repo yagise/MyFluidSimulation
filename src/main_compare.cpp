@@ -1,4 +1,4 @@
-// 修正ポイント: マクロ定義で衝突を先に潰す
+﻿// 修正ポイント: マクロ定義で衝突を先に潰す
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -52,10 +52,7 @@ struct Camera {
     glm::vec3 pos    = glm::vec3(2.0f, 2.0f, 2.0f);
     glm::vec3 target = glm::vec3(0.5f, 0.5f, 0.5f);
     glm::mat4 P{}, V{};
-    // summary: 状態を更新する
-    // param w: 入力パラメータ
-    // param h: 入力パラメータ
-    // return: なし
+    // 画面サイズに応じて射影・ビュー行列を更新する
     void update(int w, int h){
         float aspect = (h != 0) ? (w / float(h)) : 1.0f;
         P = glm::perspective(glm::radians(45.0f), aspect, 0.01f, 10.0f);
@@ -77,11 +74,6 @@ struct Tracer {
     glm::vec3 pos;
     std::vector<glm::vec3> trail;
 };
-
-// summary: rotate_mesh_z の処理を行う
-// param src: 入力パラメータ
-// param angle: 入力パラメータ
-// return: 戻り値
 static TriangleMesh rotate_mesh_z(const TriangleMesh& src, float angle){
     TriangleMesh dst;
     dst.indices = src.indices;
@@ -98,10 +90,6 @@ static TriangleMesh rotate_mesh_z(const TriangleMesh& src, float angle){
     }
     return dst;
 }
-// summary: translate_mesh の処理を行う
-// param src: 入力パラメータ
-// param delta: 入力パラメータ
-// return: 戻り値
 static TriangleMesh translate_mesh(const TriangleMesh& src, const glm::vec3& delta){
     TriangleMesh dst;
     dst.indices = src.indices;
@@ -121,11 +109,6 @@ struct TracerRenderer {
     GLuint prog=0, vao=0, vbo=0;
     GLint locMVP=-1, locColor=-1;
     int maxVerts=0;
-
-    // summary: compileShader の処理を行う
-    // param type: 入力パラメータ
-    // param src: 入力パラメータ
-    // return: 戻り値
     static GLuint compileShader(GLenum type, const char* src){
         GLuint s = glCreateShader(type);
         glShaderSource(s, 1, &src, nullptr);
@@ -137,26 +120,17 @@ struct TracerRenderer {
         }
         return s;
     }
-    // summary: 初期化処理を行う
-    // param maxPoints: 入力パラメータ
-    // return: なし
     void init(int maxPoints){
         maxVerts = maxPoints;
         const char* vsrc =
             "#version 330 core\n"
             "layout(location=0) in vec3 aPos;\n"
             "uniform mat4 uMVP;\n"
-            // summary: vec4 の処理を行う
-            // param: なし
-            // return: 戻り値
             "void main(){ gl_Position = uMVP * vec4(aPos,1.0); }\n";
         const char* fsrc =
             "#version 330 core\n"
             "uniform vec3 uColor;\n"
             "out vec4 fragColor;\n"
-            // summary: vec4 の処理を行う
-            // param: なし
-            // return: 戻り値
             "void main(){ fragColor = vec4(uColor,1.0); }\n";
         GLuint vs = compileShader(GL_VERTEX_SHADER, vsrc);
         GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsrc);
@@ -178,19 +152,12 @@ struct TracerRenderer {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*3, (void*)0);
         glBindVertexArray(0);
     }
-    // summary: 状態を更新する
-    // param t: 入力パラメータ
-    // return: なし
+// 状態を更新する
     void updateBuffer(const Tracer& t){
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         int cnt = (int)std::min<size_t>(t.trail.size(), maxVerts);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*3*cnt, t.trail.data());
     }
-    // summary: 描画処理を行う
-    // param t: 入力パラメータ
-    // param mvp: 入力パラメータ
-    // param color: 入力パラメータ
-    // return: なし
     void draw(const Tracer& t, const glm::mat4& mvp, const glm::vec3& color){
         if(t.trail.empty()) return;
         int cnt = (int)std::min<size_t>(t.trail.size(), maxVerts);
@@ -211,11 +178,6 @@ struct TracerRenderer {
 
 enum class Display    { Pressure, Speed, Error };
 enum class SolverView { Legacy, Home, Hybrid, Compare };
-
-// summary: setTitle の処理を行う
-// param win: 入力パラメータ
-// param s: 入力パラメータ
-// return: なし
 static void setTitle(const Window& win, SolverView s){
     const char* m = (s==SolverView::Legacy) ? "Legacy(BGK)"
                  : (s==SolverView::Home   ? "HOME(Moment)"
@@ -225,20 +187,15 @@ static void setTitle(const Window& win, SolverView s){
         "  [1:rho  2:|u|  3:error  G:legacy  H:home  B:hybrid  C:compare  O:obstacle]";
     glfwSetWindowTitle(win.handle(), t.c_str());
 }
-
-// summary: 実行エントリポイントとしてシミュレーションを開始する
-// param argc: 入力パラメータ
-// param argv: 入力パラメータ
-// return: 終了コード
+// 実行エントリポイントとしてシミュレーションを開始する
 int main(int argc, char** argv){
     // シミュレーション領域を広げて障害物との間に余白を確保（元: 160 x 120 x 96）
-    Domain d; d.Nx=200; d.Ny=150; d.Nz=120; d.tau=0.58f; d.forceX=3e-6f;
+    Domain d; d.Nx=200; d.Ny=150; d.Nz=120; d.tau=0.58f; d.forceX = d.forceY = d.forceZ = 0.0f;
     const int numCells = d.Nx * d.Ny * d.Nz;
 
     TriangleMesh mesh;
-    // 論文用整理:
     // - デバッグ用途の障害物を勝手に入れる挙動は廃止。
-    // - 明示的に --stl / --fan / --teardrop が指定されたときだけ障害物を置く。
+    // - 明示的に --stl が指定されたときだけ障害物を置く。
     // - 何も指定が無い場合は障害物なしで走る。
     bool haveObstacle = false;
     std::string stlPath;
@@ -273,19 +230,9 @@ int hybridSweepSteps = 500;  // steps per d0 in sweep mode
             stlPath = argv[++argi];
             haveObstacle = true;
         }
-        else if(a == "--fan"){
-            // 手続き生成モデルは明示されたときだけ使用する。
-            mesh = make_fan();
-            haveObstacle = true;
-        }
-        else if(a == "--teardrop"){
-            mesh = make_teardrop();
-            haveObstacle = true;
-        }
         else if (a == "--force" && argi+1 < argc) { d.forceX = std::stof(argv[++argi]); }
         else if ((a == "--forcey" || a=="--force-y") && argi+1 < argc) { d.forceY = std::stof(argv[++argi]); }
         else if ((a == "--forcez" || a=="--force-z") && argi+1 < argc) { d.forceZ = std::stof(argv[++argi]); }
-        // 論文用整理:
         // - 回転体・落下など、移動壁に由来する追加機能は削除。
         // （論文の比較対象に不要 / 条件を複雑にするため）
         else if((a == "--method" || a=="--solver") && argi+1 < argc){
@@ -382,8 +329,6 @@ if(wallMetricsEvery>0){
             }
         }
     }
-
-    // 論文用整理: デフォルトで teardrop を入れる挙動は削除。
     // ここで STL を読み込めなかった場合は実験として意味が無いので終了する。
     if(!stlPath.empty()){
         TriangleMesh m2;
@@ -439,17 +384,11 @@ if(wallMetricsEvery>0){
 
 
 //
-// Hybrid(B0) preprocessing
+// Hybrid(B0) の事前処理
 //
-// We need an integer "distance to solid" field (6-neighborhood) so that we can
-// mark the near-wall band as LEGACY cells:
-//
-// legacy if (distance_to_solid <= d0)
-// HOME otherwise
-//
-// NOTE: This distance is computed with non-periodic boundaries (same as the
-// existing nearWallFluid diagnostic). If your obstacle touches the domain
-// boundary and you rely on periodicity, consider changing this to wraparound.
+// 固体までの 6 近傍距離を整数フィールドとして持ち、距離が d0 以下なら LEGACY、そうでなければ HOME
+// と判定する帯域を作る。nearWallFluid と同じく非周期境界で計算するため、周期境界が必要なら
+// wraparound するように計算を差し替える。
 const int maxBandForDist = std::max(hybridBand, hybridSweepMax);
 std::vector<int> distToSolid(numCells, -1);
 if(maxBandForDist > 0){
@@ -552,7 +491,6 @@ if(initMode=="gauss"){
 
 
 // --- 平衡に “再構成” ---
-// 論文用整理:
 // 初期条件の作り方を全ソルバで統一する。
 // - Legacy : (rho,u) から平衡分布 f_i を構成し、fnext も整合
 // - HOME : moments-only なので (rho,u,S=0) を構成し、mnext も整合
@@ -562,35 +500,15 @@ hybrid.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
 
 
 //
-// Hybrid d0 sweep (headless)
+// Hybrid d0 スイープ（ヘッドレス）
 //
-// If --hybrid-sweep-max is provided, we skip the GUI and quantify how much
-// the band thickness d0 affects the near-wall velocity statistics.
-//
-// Output is CSV to stdout:
-// d0, legacy_cells, mean|u|_legacy, mean|u|_hybrid, mean_abs_diff
-//
-// This is intentionally simple so you can post-process it with Python/R.
+// --hybrid-sweep-max が指定された場合は GUI を飛ばし、帯域厚み d0 が壁近傍速度統計へ与える影響を
+// CSV で出力する。
+// 出力: d0, legacy_cells, mean|u|_legacy, mean|u|_hybrid, mean_abs_diff
 if(hybridSweepMax >= 0){
-    //
-    // Hybrid B0 study sweep (headless)
-    //
-    // This mode is intended for *experiments* (no GUI):
-    //
-    // - Run a LEGACY baseline once (full f_i everywhere)
-    // - Run a HOME baseline once (moment-encoded; reconstruct f_i on the fly)
-    // - For d0 = 0..hybridSweepMax:
-    // run HYBRID(B0) where near-wall band (dist_to_solid <= d0) is LEGACY
-    // and the bulk is HOME-style moment cache.
-    //
-    // We then report near-wall statistics and how close HOME/HYBRID are to LEGACY.
-    //
-    // Output: CSV to stdout (easy to redirect to file on Windows).
-    //
-    // NOTE:
-    // - "near-wall" here means fluid cells with a 6-neighbor solid cell (dist=1).
-    // - "legacy_ratio" is legacy_cells / fluid_cells (not counting solid cells).
-    //
+    // 実験用モード: まず LEGACY/HOME を 1 回ずつ回して基準を作り、d0=0..hybridSweepMax で
+    // HYBRID(B0) を実行し壁近傍統計を比較する。near-wall は 6 近傍に solid がある流体セル
+    // (dist=1) を指す。legacy_ratio は legacy_cells / fluid_cells（solid を除外）。
     std::printf("[hybrid] B0 sweep enabled: d0=0..%d, steps_per_run=%d\n",
                 hybridSweepMax, hybridSweepSteps);
 
@@ -646,10 +564,6 @@ if(hybridSweepMax >= 0){
 
         // Initial condition: equilibrium reconstructed from rho-field
         leg.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
-
-        // summary: step の処理を行う
-        // param [&](: 入力パラメータ
-        // return: 戻り値
         msPerStep_legacy = time_ms_per_step([&](){ leg.step(1); }, hybridSweepSteps);
 
         // Compute speed field
@@ -687,10 +601,6 @@ if(hybridSweepMax >= 0){
 
         // HOME も同じ API で初期条件を作る（moments-only）
         ho.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
-
-        // summary: step の処理を行う
-        // param [&](: 入力パラメータ
-        // return: 戻り値
         msPerStep_home = time_ms_per_step([&](){ ho.step(1); }, hybridSweepSteps);
 
         launch_speed(ho.d_u(), ho.d_v(), ho.d_w(), d_speed, numCells);
@@ -742,10 +652,6 @@ if(hybridSweepMax >= 0){
             hyb.setLegacyMapping(isLegacy.data(), slot.data());
 
             hyb.reinitEquilibriumFromMacro(d_rhoInit, nullptr, nullptr, nullptr);
-
-            // summary: step の処理を行う
-            // param [&](: 入力パラメータ
-            // return: 戻り値
             msPerStep_hyb = time_ms_per_step([&](){ hyb.step(1); }, hybridSweepSteps);
 
             launch_speed(hyb.d_u(), hyb.d_v(), hyb.d_w(), d_speed, numCells);
@@ -855,7 +761,6 @@ auto stepBothSolvers = [&](){
     if(vtkEnabled){
         dumpVtk(0); // initial state
     }
-    // 論文用整理: 障害物を動かす機能（回転/落下）を削除したため、角度状態は不要。
 
     // トレーサ（Legacy / HOME 両方の速度場に1粒子ずつ乗せる）
     const glm::vec3 tracerInit(0.55f, 0.5f, 0.5f);  // 流速が出やすい管中心付近に寄せる

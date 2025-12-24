@@ -1,25 +1,4 @@
-#!/usr/bin/env python3
-"""summary: summarize_b0_amr.py の処理内容をまとめたスクリプト
-
-summarize_b0_amr.py
-
-Summarize the effect of *wall AMR* on HOME-vs-Legacy mismatch and
-how much B0 (legacy band) is needed to reduce the mismatch.
-
-This script is intended for quick midterm / thesis plots and tables.
-It reads the CSV files produced by the headless sweep:
- fluidsim_compare.exe --hybrid-sweep-max M --hybrid-sweep-steps S ...
-
-Usage:
- python scripts/summarize_b0_amr.py <results_dir> <shape_tag> [--target-frac 0.2] [--pick-d0 2]
-
-Where:
- - results_dir: folder containing CSVs (e.g. results_b0)
- - shape_tag : 'teardrop' or 'fan' (substring match)
- - target-frac: find the smallest d0 such that mean_absdiff_hybrid <= target-frac * mean_absdiff_home
- - pick-d0: report mean_absdiff_hybrid at this specific d0 (default 2)
-
-Outputs a CSV table to stdout."""
+"""壁 AMR スイープ結果を集計し、HOME/Legacy 差と Hybrid(B0) の必要幅をまとめる"""
 
 import sys
 import csv
@@ -28,9 +7,7 @@ from pathlib import Path
 
 
 def read_csv(path: Path):
-    """summary: 入力を読み取る
-param path: 入力パラメータ
-return: 戻り値"""
+    """入力を読み取る"""
     lines = [ln.strip() for ln in path.open("r", encoding="utf-8", errors="ignore") if ln.strip()]
     header_idx = None
     for i, ln in enumerate(lines):
@@ -44,9 +21,7 @@ return: 戻り値"""
 
 
 def to_float(x: str) -> float:
-    """summary: to_float の処理を行う
-param x: 入力パラメータ
-return: 戻り値"""
+    """数値化できない値を NaN にする簡易パーサ"""
     try:
         return float(x)
     except Exception:
@@ -54,10 +29,8 @@ return: 戻り値"""
 
 
 def parse_amr_from_name(name: str):
-    """summary: 引数や入力を解析する
-param name: 入力パラメータ
-return: 戻り値"""
-    # expected something like: b0_teardrop_amr2_thr0p5.csv
+    """引数や入力を解析する"""
+    # expected something like: b0_shape_amr2_thr0p5.csv
     m = re.search(r"amr(\d+)", name)
     amr = int(m.group(1)) if m else -1
 
@@ -69,9 +42,7 @@ return: 戻り値"""
 
 
 def main():
-    """summary: スクリプトのエントリポイントを実行する
-param: なし
-return: 戻り値"""
+    """スクリプトのエントリポイントを実行する"""
     if len(sys.argv) < 3:
         print("Usage: python scripts/summarize_b0_amr.py <results_dir> <shape_tag> [--target-frac 0.2] [--pick-d0 2]", file=sys.stderr)
         return 1

@@ -1,4 +1,4 @@
-"""summary: vtk_slice_to_png.py の処理内容をまとめたスクリプト"""
+﻿"""vtk_slice_to_png.py の処理内容をまとめたスクリプト"""
 
 import argparse
 import glob
@@ -11,9 +11,7 @@ import numpy as np
 
 
 def read_structured_scalar(path: Path):
-    """summary: 入力を読み取る
-param path: 入力パラメータ
-return: 戻り値"""
+    """入力を読み取る"""
     with open(path, "r", encoding="utf-8") as f:
         lines = f.readlines()
     dims = None
@@ -37,12 +35,7 @@ return: 戻り値"""
 
 
 def save_frame(z_slice_legacy, z_slice_home, step, out_dir):
-    """summary: ファイル等へ書き出す
-param z_slice_legacy: 入力パラメータ
-param z_slice_home: 入力パラメータ
-param step: 入力パラメータ
-param out_dir: 入力パラメータ
-return: 戻り値"""
+    """ファイル等へ書き出す"""
     diff = z_slice_home - z_slice_legacy
     vmax = max(z_slice_legacy.max(), z_slice_home.max())
     fig, axes = plt.subplots(1, 3, figsize=(12, 4), constrained_layout=True)
@@ -70,9 +63,7 @@ return: 戻り値"""
 
 
 def main():
-    """summary: スクリプトのエントリポイントを実行する
-param: なし
-return: 戻り値"""
+    """スクリプトのエントリポイントを実行する"""
     ap = argparse.ArgumentParser(description="Create mid-plane slice PNGs (and optional GIF) from VTK outputs.")
     ap.add_argument("vtk_dir", help="Directory containing speed_legacy_*.vtk and speed_home_*.vtk")
     ap.add_argument("out_dir", help="Output directory for PNG frames (and optional GIF)")

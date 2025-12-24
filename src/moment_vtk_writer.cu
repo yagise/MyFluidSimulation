@@ -1,18 +1,11 @@
-
+﻿
 #include <cuda_runtime.h>
 #include "common/cuda_utils.hpp"
 #include <vector>
 #include <fstream>
 #include <string>
 #include <stdexcept>
-
-// summary: 出力データを書き出す
-// param filename: 入力パラメータ
-// param d_field: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// スカラー場を VTK (STRUCTURED_POINTS, ASCII) としてホスト経由で書き出す
 extern "C" void write_scalar_vtk(const char* filename, const float* d_field, int Nx, int Ny, int Nz){
     const size_t N = static_cast<size_t>(Nx) * static_cast<size_t>(Ny) * static_cast<size_t>(Nz);
     std::vector<float> h(N);
@@ -29,16 +22,7 @@ extern "C" void write_scalar_vtk(const char* filename, const float* d_field, int
       << "LOOKUP_TABLE default\n";
     for(size_t i=0;i<N;++i) f << h[i] << "\n";
 }
-
-// summary: 出力データを書き出す
-// param filename: 入力パラメータ
-// param d_fx: 入力パラメータ
-// param d_fy: 入力パラメータ
-// param d_fz: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// ベクトル場 (fx,fy,fz) を VTK (STRUCTURED_POINTS, ASCII) としてホスト経由で書き出す
 extern "C" void write_vector_vtk(const char* filename,
                                  const float* d_fx,
                                  const float* d_fy,

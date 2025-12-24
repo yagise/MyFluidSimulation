@@ -1,14 +1,13 @@
-// sim_common.hpp
+﻿// sim_common.hpp
 //
-// 論文用に従来法 / HOME 法 / 従来法+HOME(B0)の実験コードを整理するための
 // 共通ユーティリティです。
 //
 // 目的:
 // - 各手法の main を分離しつつ、引数処理・障害物(voxelize)・VTK 出力などを共通化する
-// - デバッグ用の自動モデル挿入（fan/teardrop を勝手に入れる等）は行わない
+// - デバッグ用の自動モデル挿入（手続き生成モデルを勝手に入れる等）は行わない
 // - 任意の STL モデルで実験できるようにする
 //
-// NOTE:
+// 注意:
 // - ここは実験・比較を回すためのユーティリティであり、数値手法そのもの
 // (衝突・ストリーミング) は各 LBM 実装側にあります。
 //
@@ -27,64 +26,18 @@
 #include "geom/stl_loader.hpp"
 #include "geom/voxelize.hpp"
 #include "lbm/lbm_common.hpp"
-
-// summary: 出力データを書き出す
-// param filename: 入力パラメータ
-// param d_field: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// 出力データを書き出す
 extern "C" void write_scalar_vtk(const char* filename, const float* d_field, int Nx, int Ny, int Nz);
-// summary: 出力データを書き出す
-// param filename: 入力パラメータ
-// param d_fx: 入力パラメータ
-// param d_fy: 入力パラメータ
-// param d_fz: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// 出力データを書き出す
 extern "C" void write_vector_vtk(const char* filename,
                                  const float* d_fx,
                                  const float* d_fy,
                                  const float* d_fz,
                                  int Nx, int Ny, int Nz);
-
-// summary: make_rho_gauss の処理を行う
-// param d_rho: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param cx: 入力パラメータ
-// param cy: 入力パラメータ
-// param cz: 入力パラメータ
-// param sigma: 入力パラメータ
-// param amp: 入力パラメータ
-// return: なし
 extern "C" void make_rho_gauss(float* d_rho, int Nx, int Ny, int Nz,
                                float cx, float cy, float cz, float sigma, float amp);
-// summary: make_rho_slab の処理を行う
-// param d_rho: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param axis: 入力パラメータ
-// param amp: 入力パラメータ
-// param center: 入力パラメータ
-// param width: 入力パラメータ
-// return: なし
 extern "C" void make_rho_slab(float* d_rho, int Nx, int Ny, int Nz,
                               int axis, float amp, float center, float width);
-
-// summary: reinit_equilibrium_from_macro の処理を行う
-// param d_rho: 入力パラメータ
-// param d_ux: 入力パラメータ
-// param d_uy: 入力パラメータ
-// param d_uz: 入力パラメータ
-// param d_f: 入力パラメータ
-// param N: 入力パラメータ
-// return: なし
 extern "C" void reinit_equilibrium_from_macro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,
@@ -102,7 +55,7 @@ struct DomainConfig {
     int Ny = 150;
     int Nz = 120;
     float tau = 0.58f;
-    float fx = 3e-6f;
+    float fx = 0.0f;
     float fy = 0.0f;
     float fz = 0.0f;
 };
@@ -111,8 +64,6 @@ struct DomainConfig {
 struct ObstacleConfig {
     // 入力モデル
     std::string stlPath;         ///< --stl で指定された STL
-    bool useTeardrop = false;    ///< --teardrop（自動では使わない）
-    bool useFan = false;         ///< --fan（自動では使わない）
 
     // voxelize
     float uniformScale = 0.5f;   ///< 単位立方体[0,1]^3 に収めるためのスケール
@@ -157,23 +108,10 @@ struct ObstacleData {
 
 //
 // 引数処理
-//
-
-// summary: is_option の処理を行う
-// param s: 入力パラメータ
-// return: 戻り値
 inline bool is_option(const char* s) {
     return s && s[0] == '-';
 }
-
-// summary: 引数や入力設定を解析する
-// param argc: 入力パラメータ
-// param argv: 入力パラメータ
-// param dom: 入力パラメータ
-// param obs: 入力パラメータ
-// param run: 入力パラメータ
-// param hyb: 入力パラメータ
-// return: なし
+// 引数や入力設定を解析する
 inline void parse_common_args(int argc, char** argv,
                               DomainConfig& dom,
                               ObstacleConfig& obs,
@@ -199,8 +137,6 @@ inline void parse_common_args(int argc, char** argv,
 
         // --- 障害物 ---
         else if (a == "--stl" && need(1)) obs.stlPath = argv[++i];
-        else if (a == "--teardrop") obs.useTeardrop = true;
-        else if (a == "--fan") obs.useFan = true;
         else if (a == "--voxel-scale" && need(1)) obs.uniformScale = std::stof(argv[++i]);
         else if (a == "--voxel-translate" && need(3)) {
             obs.translateX = std::stof(argv[++i]);
@@ -258,10 +194,7 @@ inline void parse_common_args(int argc, char** argv,
 //
 // 障害物ロード / voxelize
 //
-
-// summary: 入力データを読み込む
-// param obs: 入力パラメータ
-// return: 戻り値
+// 入力データを読み込む
 inline std::optional<TriangleMesh> load_obstacle_mesh(const ObstacleConfig& obs) {
     if (!obs.stlPath.empty()) {
         TriangleMesh m;
@@ -272,18 +205,9 @@ inline std::optional<TriangleMesh> load_obstacle_mesh(const ObstacleConfig& obs)
         return m;
     }
 
-    // 手続き生成は "--fan / --teardrop" が明示された場合のみ
-    if (obs.useFan) return make_fan();
-    if (obs.useTeardrop) return make_teardrop();
-
     // 何も指定されていない場合は障害物なし
     return std::nullopt;
 }
-
-// summary: build_obstacle の処理を行う
-// param dom: 入力パラメータ
-// param obs: 入力パラメータ
-// return: 戻り値
 inline ObstacleData build_obstacle(const DomainConfig& dom, const ObstacleConfig& obs) {
     const int N = dom.Nx * dom.Ny * dom.Nz;
 
@@ -315,12 +239,6 @@ inline ObstacleData build_obstacle(const DomainConfig& dom, const ObstacleConfig
 
 //
 // 初期条件
-//
-
-// summary: build_initial_rho_device の処理を行う
-// param dom: 入力パラメータ
-// param run: 入力パラメータ
-// return: 戻り値
 inline float* build_initial_rho_device(const DomainConfig& dom, const RunConfig& run) {
     const int N = dom.Nx * dom.Ny * dom.Nz;
     float* d_rho = nullptr;
@@ -343,13 +261,6 @@ inline float* build_initial_rho_device(const DomainConfig& dom, const RunConfig&
 
 //
 // VTK 出力
-//
-
-// summary: vtk_path の処理を行う
-// param dir: 入力パラメータ
-// param stem: 入力パラメータ
-// param step: 入力パラメータ
-// return: 戻り値
 inline std::string vtk_path(const std::filesystem::path& dir,
                             const std::string& stem,
                             int step)
@@ -358,10 +269,6 @@ inline std::string vtk_path(const std::filesystem::path& dir,
     std::snprintf(buf, sizeof(buf), "%s_%06d.vtk", stem.c_str(), step);
     return (dir / buf).string();
 }
-
-// summary: prepare_vtk_dir の処理を行う
-// param run: 入力パラメータ
-// return: 戻り値
 inline std::optional<std::filesystem::path> prepare_vtk_dir(const RunConfig& run) {
     if (run.vtkDir.empty() || run.vtkEvery <= 0) return std::nullopt;
     std::filesystem::path p(run.vtkDir);

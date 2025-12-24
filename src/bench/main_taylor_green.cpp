@@ -1,4 +1,4 @@
-#include <cuda_runtime.h>
+﻿#include <cuda_runtime.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -29,7 +29,7 @@ static constexpr double kPi = 3.14159265358979323846;
 struct Config {
     int Nx = 128;
     int Ny = 128;
-    int Nz = 16;          // z is kept uniform (2D TGV extruded in z)
+    int Nz = 16;          // z 方向は一定（2D TGV を z に押し出し）
     int steps = 400;
     int sampleEvery = 10;
     double tau = 0.58;
@@ -64,14 +64,6 @@ struct SampleRow {
     SolverSample legacy;
     SolverSample home;
 };
-
-// summary: analytic_tgv の処理を行う
-// param ix: 入力パラメータ
-// param iy: 入力パラメータ
-// param iz: 入力パラメータ
-// param t: 入力パラメータ
-// param cfg: 入力パラメータ
-// return: 戻り値
 static AnalyticState analytic_tgv(int ix, int iy, int /*iz*/, double t, const Config& cfg) {
     const double tx = (static_cast<double>(ix) + 0.5) * cfg.kxWave;
     const double ty = (static_cast<double>(iy) + 0.5) * cfg.kyWave;
@@ -94,14 +86,6 @@ static AnalyticState analytic_tgv(int ix, int iy, int /*iz*/, double t, const Co
 }
 
 template <typename Solver>
-// summary: apply_initial_fields の処理を行う
-// param cfg: 入力パラメータ
-// param solver: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// return: なし
 static void apply_initial_fields(const Config& cfg,
                                  Solver& solver,
                                  const std::vector<float>& rho,
@@ -117,12 +101,6 @@ static void apply_initial_fields(const Config& cfg,
     // 平衡状態へ（HOME は moments-only なので内部で (rho,u,S=0) を作る）
     solver.reinitEquilibriumFromMacro(solver.d_rho(), solver.d_u(), solver.d_v(), solver.d_w());
 }
-
-// summary: 初期化処理を行う
-// param cfg: 入力パラメータ
-// param legacy: 入力パラメータ
-// param home: 入力パラメータ
-// return: なし
 static void initialize_solvers(const Config& cfg, LBM3D_Legacy& legacy, LBM3D_Home& home) {
     Domain d;
     d.Nx = cfg.Nx;
@@ -160,15 +138,6 @@ static void initialize_solvers(const Config& cfg, LBM3D_Legacy& legacy, LBM3D_Ho
 }
 
 template <typename Solver>
-// summary: sample_solver の処理を行う
-// param solver: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param cfg: 入力パラメータ
-// param time: 入力パラメータ
-// return: 戻り値
 static SolverSample sample_solver(const Solver& solver,
                                   std::vector<float>& rho,
                                   std::vector<float>& ux,
@@ -212,20 +181,11 @@ static SolverSample sample_solver(const Solver& solver,
     s.linf = maxErr;
     return s;
 }
-
-// summary: analytic_energy の処理を行う
-// param t: 入力パラメータ
-// param cfg: 入力パラメータ
-// return: 戻り値
 static double analytic_energy(double t, const Config& cfg) {
-    // E = (u0^2 / 4) * exp(-2 * nu * k^2 * t)
+// エネルギーの解析解: E = (u0^2 / 4) * exp(-2 * nu * k^2 * t)
     return 0.25 * cfg.u0 * cfg.u0 * std::exp(-2.0 * cfg.nu * cfg.k2 * t);
 }
-
-// summary: 出力データを書き出す
-// param rows: 入力パラメータ
-// param path: 入力パラメータ
-// return: なし
+// 出力データを書き出す
 static void write_csv(const std::vector<SampleRow>& rows, const std::string& path) {
     std::ofstream ofs(path);
     ofs << "step,time,energy_exact,energy_legacy,energy_home,l2_legacy,l2_home,linf_legacy,linf_home\n";
@@ -243,76 +203,37 @@ static void write_csv(const std::vector<SampleRow>& rows, const std::string& pat
     }
     std::cout << "[write] saved " << rows.size() << " samples to " << path << "\n";
 }
-
-// summary: 引数や入力設定を解析する
-// param argc: 入力パラメータ
-// param argv: 入力パラメータ
-// param cfg: 入力パラメータ
-// return: なし
+// 引数や入力設定を解析する
 static void parse_args(int argc, char** argv, Config& cfg) {
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto need = [&](int remain) { return (i + remain) < argc; };
         if (a == "--nx" && need(1)) {
             cfg.Nx = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--ny" && need(1)) {
             cfg.Ny = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--nz" && need(1)) {
             cfg.Nz = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--steps" && need(1)) {
             cfg.steps = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--sample-every" && need(1)) {
             cfg.sampleEvery = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--u0" && need(1)) {
             cfg.u0 = std::stod(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--tau" && need(1)) {
             cfg.tau = std::stod(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if ((a == "--k" || a == "--wavenumber") && need(1)) {
             cfg.kx = cfg.ky = std::stod(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--vtk-dir" && need(1)) {
             cfg.vtkDir = argv[++i];
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if ((a == "--vtk-every" || a == "--vtk-interval") && need(1)) {
             cfg.vtkEvery = std::stoi(argv[++i]);
-        // summary: need の処理を行う
-        // param a: 入力パラメータ
-        // return: 戻り値
         } else if (a == "--csv" && need(1)) {
             cfg.csvPath = argv[++i];
         }
     }
 }
-
-// summary: 実行エントリポイントとしてシミュレーションを開始する
-// param argc: 入力パラメータ
-// param argv: 入力パラメータ
-// return: 終了コード
+// 実行エントリポイントとしてシミュレーションを開始する
 int main(int argc, char** argv) {
     Config cfg;
     parse_args(argc, argv, cfg);
@@ -350,7 +271,7 @@ int main(int argc, char** argv) {
     std::vector<float> uyBuf(cfg.numCells);
     std::vector<float> uzBuf(cfg.numCells);
 
-    // Device buffers for VTK speed dumps
+// VTK へ速度を書き出すためのデバイスバッファ
     float* d_speedLegacy = nullptr;
     float* d_speedHome = nullptr;
     if (!cfg.vtkDir.empty() && cfg.vtkEvery > 0) {

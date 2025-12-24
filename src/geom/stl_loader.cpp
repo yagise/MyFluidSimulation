@@ -1,30 +1,17 @@
-#include "stl_loader.hpp"
+﻿#include "stl_loader.hpp"
 #include <fstream>
 #include <sstream>
 #include <cstdint>
 #include <algorithm>
 #include <limits>
 #include <glm/glm.hpp> // vec3
-
-// summary: vmin3 の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// return: 戻り値
 static inline glm::vec3 vmin3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::min(a.x,b.x), std::min(a.y,b.y), std::min(a.z,b.z));
 }
-// summary: vmax3 の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// return: 戻り値
 static inline glm::vec3 vmax3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::max(a.x,b.x), std::max(a.y,b.y), std::max(a.z,b.z));
 }
-// summary: 状態を更新する
-// param mn: 入力パラメータ
-// param mx: 入力パラメータ
-// param p: 入力パラメータ
-// return: なし
+// 状態を更新する
 static inline void update_bb(glm::vec3& mn, glm::vec3& mx, const glm::vec3& p){
     mn = vmin3(mn, p);
     mx = vmax3(mx, p);
@@ -39,11 +26,7 @@ struct BinTri {
     unsigned short attr;
 };
 #pragma pack(pop)
-
-// summary: 引数や入力設定を解析する
-// param is: 入力パラメータ
-// param out: 入力パラメータ
-// return: 戻り値
+// 引数や入力設定を解析する
 static bool parse_ascii(std::istream& is, TriangleMesh& out){
     out.positions.clear();
     out.indices.clear();
@@ -76,11 +59,7 @@ static bool parse_ascii(std::istream& is, TriangleMesh& out){
     }
     return !out.indices.empty();
 }
-
-// summary: 引数や入力設定を解析する
-// param is: 入力パラメータ
-// param out: 入力パラメータ
-// return: 戻り値
+// 引数や入力設定を解析する
 static bool parse_binary(std::istream& is, TriangleMesh& out){
     char header[80];
     if(!is.read(header,80)) return false;
@@ -115,18 +94,10 @@ static bool parse_binary(std::istream& is, TriangleMesh& out){
     }
     return true;
 }
-
-// summary: 入力データを読み込む
-// param path: 入力パラメータ
-// param out: 入力パラメータ
-// return: 戻り値
+// 入力データを読み込む
 bool load_stl(const std::string& path, TriangleMesh& out){
     std::ifstream f(path, std::ios::binary);
     if(!f) return false;
-
-    // summary: read の処理を行う
-    // param: なし
-    // return: 戻り値
     char head[6] = {}; f.read(head,5);
     f.clear(); f.seekg(0);
 
@@ -145,11 +116,6 @@ bool load_stl(const std::string& path, TriangleMesh& out){
     // binary
     return parse_binary(f, out);
 }
-
-// summary: make_teardrop の処理を行う
-// param nu: 入力パラメータ
-// param nv: 入力パラメータ
-// return: 戻り値
 TriangleMesh make_teardrop(unsigned nu, unsigned nv){
     TriangleMesh m;
     m.bbmin = glm::vec3( std::numeric_limits<float>::max() );
@@ -179,25 +145,12 @@ TriangleMesh make_teardrop(unsigned nu, unsigned nv){
             glm::vec3 v2 = grid[id(i,  j+1)];
             glm::vec3 v3 = grid[id(i+1,j+1)];
             unsigned base = (unsigned)m.positions.size();
-            // summary: end の処理を行う
-            // param end: 入力パラメータ
-            // return: 戻り値
             m.positions.insert(m.positions.end(), {v0,v2,v1,  v1,v2,v3});
-            // summary: end の処理を行う
-            // param end: 入力パラメータ
-            // return: 戻り値
             m.indices.insert(m.indices.end(), {base+0,base+1,base+2,  base+3,base+4,base+5});
         }
     }
     return m;
 }
-
-// summary: make_fan の処理を行う
-// param blades: 入力パラメータ
-// param radius: 入力パラメータ
-// param hub: 入力パラメータ
-// param thickness: 入力パラメータ
-// return: 戻り値
 TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness){
     TriangleMesh m;
     m.bbmin = glm::vec3( std::numeric_limits<float>::max() );
@@ -214,9 +167,6 @@ TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness)
     }
     for(unsigned i=1;i<=rimSeg;++i){
         unsigned a = base+0, b = base+i, c = base+(i%rimSeg)+1;
-        // summary: end の処理を行う
-        // param end: 入力パラメータ
-        // return: 戻り値
         m.indices.insert(m.indices.end(), {a,b,c});
     }
 
@@ -228,13 +178,7 @@ TriangleMesh make_fan(unsigned blades, float radius, float hub, float thickness)
         glm::vec3 p2(radius*std::cos(ang+tilt), radius*std::sin(ang+tilt),  thickness);
         glm::vec3 p3(radius*std::cos(ang-tilt), radius*std::sin(ang-tilt), -thickness);
         unsigned baseB = (unsigned)m.positions.size();
-        // summary: end の処理を行う
-        // param end: 入力パラメータ
-        // return: 戻り値
         m.positions.insert(m.positions.end(), {p1,p2,p3});
-        // summary: end の処理を行う
-        // param end: 入力パラメータ
-        // return: 戻り値
         m.indices.insert(m.indices.end(), {baseB+0,baseB+1,baseB+2});
     }
 

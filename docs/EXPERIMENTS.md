@@ -51,11 +51,11 @@ python scripts/vtk_slice_to_png.py out_vtk/tgv_vtk out_vtk/frames --gif out_vtk/
 GUI 実行ファイル `fluidsim_compare` には、B0 の band 厚 `d0` を sweep して
 統計量を CSV で出す headless モードがあります。
 
-例（teardrop、AMR=2、d0=0..6 を 800 step ずつ）:
+例（任意の STL、AMR=2、d0=0..6 を 800 step ずつ）:
 
 ```bash
 ./build/fluidsim_compare \
-  --teardrop \
+  --stl path/to/model.stl \
   --amr-factor 2 --amr-threshold 0.5 \
   --hybrid-sweep-max 6 --hybrid-sweep-steps 800 \
   > results.csv
@@ -98,7 +98,7 @@ ParaView で `tgv2d_rho.vtk`, `tgv2d_vel.vtk` を読み込んで確認できま�
 
 ## 注意（再現性のために）
 
-- 障害物は **自動投入されません**。必ず `--stl` / `--fan` / `--teardrop` を明示してください。
+- 障害物は **自動投入されません**。必ず `--stl` を明示してください。
 - 比較するときは、少なくとも以下を揃えるのが安全です。
   - `(Nx,Ny,Nz)`, `tau`, `force`, `steps`, `substeps`
   - voxelize パラメータ (`--voxel-scale`, `--voxel-translate`, `--amr-factor`, `--amr-threshold`)
