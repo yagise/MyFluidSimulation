@@ -51,61 +51,35 @@
 
 class LBM3D_Hybrid {
 public:
-    // summary: 確保したメモリを解放する
-    // param: なし
-    // return: なし
+    // 確保したデバイスメモリを解放するデストラクタ。
     ~LBM3D_Hybrid();
 
-    // summary: 初期化処理を行う
-    // param d: 入力パラメータ
-    // param nLegacyCells: 入力パラメータ
-    // return: なし
+    // ドメイン設定を反映し、必要なバッファを確保する。nLegacyCells は期待セル数のヒント。
     void init(const Domain& d, int nLegacyCells = 0);
-    // summary: setSolidMask の処理を行う
-    // param h_mask: 入力パラメータ
-    // return: なし
+
+    // ホスト側の固体マスク（0:流体,1:固体）を GPU に転送する。
     void setSolidMask(const unsigned char* h_mask);
 
-    // summary: setLegacyMapping の処理を行う
-    // param h_isLegacy: 入力パラメータ
-    // param h_legacySlot_ignored: 入力パラメータ
-    // return: なし
+    // Legacy/HOME をセル単位で切り替えるマスクを設定する（nullptr なら全セル HOME）。
     void setLegacyMapping(const unsigned char* h_isLegacy,
                           const int*           h_legacySlot_ignored);
 
-    // summary: reset の処理を行う
-    // param: なし
-    // return: なし
+    // 分布関数とマクロ量を rho=1, u=0 の平衡に初期化する。
     void reset();
 
-    // summary: reinitEquilibriumFromMacro の処理を行う
-    // param d_rho: 入力パラメータ
-    // param d_ux: 入力パラメータ
-    // param d_uy: 入力パラメータ
-    // param d_uz: 入力パラメータ
-    // return: なし
+    // 与えられたマクロ量(rho,u) から feq を再構築し直す。
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
 
-    // summary: step の処理を行う
-    // param substeps: 入力パラメータ
-    // return: なし
+    // ハイブリッドモデルで substeps 回だけ時間発展させる。
     void step(int substeps = 1);
 
-    // summary: setForce の処理を行う
-    // param fx: 入力パラメータ
-    // param fy: 入力パラメータ
-    // param fz: 入力パラメータ
-    // return: なし
+    // 1 ステップあたりの外力ベクトルを設定する。
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
-    // 論文用整理:
-    // Hybrid(B0) でも移動壁補正は不要なため削除。
 
-    // summary: d_f の処理を行う
-    // param: なし
-    // return: 戻り値
+    // GPU 上に保持している各バッファへの生ポインタ（push/pull デバッグ用）。
     float*       d_f()       { return d_f_; }
     // summary: d_f の処理を行う
     // param: なし
@@ -153,18 +127,14 @@ public:
     // return: 戻り値
     const float* d_w() const   { return d_w_; }
 
-    // summary: d_solid の処理を行う
-    // param: なし
-    // return: 戻り値
+    // 固体マスクと Legacy/HOME 切り替えマスク。
     const unsigned char* d_solid() const { return d_solid_; }
     // summary: d_isLegacy の処理を行う
     // param: なし
     // return: 戻り値
     const unsigned char* d_isLegacy() const { return d_isLegacy_; }
 
-    // summary: Nx の処理を行う
-    // param: なし
-    // return: 戻り値
+    // 格子サイズの参照。
     int Nx() const { return Nx_; }
     // summary: Ny の処理を行う
     // param: なし
@@ -179,28 +149,29 @@ public:
     // return: 戻り値
     int N()  const { return N_; }
 
-    // summary: 確保したメモリを解放する
-    // param: なし
-    // return: なし
+    // 確保したメモリを解放する
     void release();
 
 private:
-    // summary: 必要なメモリを確保する
-    // param: なし
-    // return: なし
+    // 必要なメモリを確保する
     void allocate();
 
+    // 格子サイズとセル数（GPU 側バッファ確保に使用）
     int Nx_=0, Ny_=0, Nz_=0, N_=0;
+    // 緩和時間と外力ベクトル（Legacy/HOME 共通で使用）
     float tau_ = 0.6f;
     float fx_=1e-6f, fy_=0.0f, fz_=0.0f;
     // (移動壁補正は削除)
 
+    // 分布関数 f（現在ステップ）と fnext（次ステップ）
     float* d_f_ = nullptr;
     float* d_fnext_ = nullptr;
+    // マクロ量（rho, ux, uy, uz）
     float* d_rho_ = nullptr;
     float* d_u_ = nullptr;
     float* d_v_ = nullptr;
     float* d_w_ = nullptr;
+    // 固体マスクと Legacy マスク
     unsigned char* d_solid_ = nullptr;
     unsigned char* d_isLegacy_ = nullptr;
 };

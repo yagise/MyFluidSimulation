@@ -1,4 +1,3 @@
-
 #pragma once
 #include "lbm_common.hpp"
 #include <cuda_runtime.h>
@@ -11,65 +10,37 @@
 //
 // このクラスの目的（今回の修正）:
 // - 分布関数 f_i(19)×2 バッファではなく、
-// 0〜2次モーメント（rho,u,S）を 10 変数/セル ×2 バッファで保持する。
+//   0〜2次モーメント（rho,u,S）を 10 変数/セル ×2 バッファで保持する。
 // - その上で、D3Q19 / 静止壁 bounce-back / 簡易外力 など
-// 既存の比較条件は極力変えずに動くようにする。
-//
-// 注意:
-// - 論文の HOME-LBM は D3Q27 や 3次Hermite再構成などを含みますが、
-// それらは今回の依頼（1だけ修正）の範囲外として未実装です。
-// - ただしモーメントだけを保存するために、ストリーミングに必要な f_i は
-// (rho,u,S) からその場で再構成します（2次モーメントまでの regularized 形式）。
-//
-// 論文用整理:
-// - 移動壁（回転体など）の補正は削除（静止壁のみ）
-//
+//   既存の比較条件は極力変えずに動くようにする。
 
 class LBM3D_Home {
 public:
-    // summary: 確保したメモリを解放する
-    // param: なし
-    // return: なし
+    // 確保したデバイスメモリを解放するデストラクタ。
     ~LBM3D_Home();
-    // summary: 初期化処理を行う
-    // param d: 入力パラメータ
-    // return: なし
+
+    // ドメイン設定を反映し、内部バッファを確保・初期化する。
     void init(const Domain& d);
 
-    // summary: setSolidMask の処理を行う
-    // param h_mask: 入力パラメータ
-    // return: なし
+    // ホスト側の固体マスク（0:流体, 1:固体）を GPU にコピーする。
     void setSolidMask(const unsigned char* h_mask);
 
-    // summary: reset の処理を行う
-    // param: なし
-    // return: なし
+    // rho=1, u=0, S=0 の平衡モーメントで全セルを再初期化する。
     void reset();
 
-    // summary: reinitEquilibriumFromMacro の処理を行う
-    // param d_rho: 入力パラメータ
-    // param d_ux: 入力パラメータ
-    // param d_uy: 入力パラメータ
-    // param d_uz: 入力パラメータ
-    // return: なし
+    // 与えられたマクロ量（rho,u）を用いて m/mnext を平衡状態に再構成する。
     void reinitEquilibriumFromMacro(const float* d_rho,
                                     const float* d_ux,
                                     const float* d_uy,
                                     const float* d_uz);
 
-    // summary: step の処理を行う
-    // param substeps: 入力パラメータ
-    // return: なし
+    // 指定された substeps 回だけ HOME スキームで時間発展させる。
     void step(int substeps = 1);
-    // summary: setForce の処理を行う
-    // param fx: 入力パラメータ
-    // param fy: 入力パラメータ
-    // param fz: 入力パラメータ
-    // return: なし
+
+    // 1 ステップあたりの外力ベクトルを設定する（簡易 Guo 風）。
     void setForce(float fx, float fy=0.0f, float fz=0.0f){ fx_=fx; fy_=fy; fz_=fz; }
-    // summary: d_rho の処理を行う
-    // param: なし
-    // return: 戻り値
+
+    // GPU 上のマクロ量バッファへのポインタを返す（SoA のオフセット込み）。
     float*       d_rho();
     // summary: d_rho の処理を行う
     // param: なし
@@ -99,9 +70,8 @@ public:
     // param: なし
     // return: 戻り値
     const float* d_w() const;
-    // summary: d_solid の処理を行う
-    // param: なし
-    // return: 戻り値
+
+    // 固体マスク（0:流体, 1:固体）と格子サイズへの参照。
     const unsigned char* d_solid() const { return d_solid_; }
 
     // summary: Nx の処理を行う
@@ -122,15 +92,14 @@ public:
     int N()  const { return N_; }
 
 private:
-    // summary: 確保したメモリを解放する
-    // param: なし
-    // return: なし
+    // 確保したデバイスメモリを解放する。
     void release();
-    // summary: 必要なメモリを確保する
-    // param: なし
-    // return: なし
+    // 現在の N_ に応じて必要なデバイスメモリを確保する。
     void allocate();
+
+    // 格子サイズと総セル数。
     int Nx_=0, Ny_=0, Nz_=0, N_=0;
+    // BGK 緩和時間と外力ベクトル（速度に加算する形で使用）。
     float tau_ = 0.6f;
     float fx_=1e-6f, fy_=0.0f, fz_=0.0f;
 
@@ -150,5 +119,6 @@ private:
     float* d_m_     = nullptr;
     float* d_mnext_ = nullptr;
 
+    // 固体セルを示す 0/1 マスク。bounce-back 判定に使う。
     unsigned char* d_solid_ = nullptr;
 };

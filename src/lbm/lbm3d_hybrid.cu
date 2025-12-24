@@ -28,6 +28,8 @@ LBM3D_Hybrid::~LBM3D_Hybrid(){ release(); }
 // 7:(+1,+1,0) 8:(-1,+1,0) 9:(+1,-1,0) 10:(-1,-1,0)
 // 11:(+1,0,+1) 12:(-1,0,+1) 13:(+1,0,-1) 14:(-1,0,-1)
 // 15:(0,+1,+1) 16:(0,-1,+1) 17:(0,+1,-1) 18:(0,-1,-1)
+// cx19_b0, cy19_b0, cz19_b0: 各方向の格子速度ベクトル
+// w19_b0: D3Q19 標準の重み。Hybrid 版でも Legacy/Home と揃える。
 __device__ __constant__ int cx19_b0[19] = {0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,  1,-1, 1,-1, 0, 0,  0, 0};
 __device__ __constant__ int cy19_b0[19] = {0, 0, 0, 1,-1, 0, 0, 1, 1,-1,-1,  0, 0, 0, 0, 1,-1,  1,-1};
 __device__ __constant__ int cz19_b0[19] = {0, 0, 0, 0, 0, 1,-1, 0, 0,  0, 0,  1, 1,-1,-1, 1, 1, -1,-1};
@@ -84,10 +86,10 @@ __global__ static void kern_reset(float* f, float* rho, float* u, float* v, floa
     int iy = blockIdx.y*blockDim.y + threadIdx.y;
     int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
-    int N = Nx*Ny*Nz;
-    int id = index3D(ix,iy,iz,Nx,Ny);
-    float r = 1.0f;
-    rho[id] = r; u[id]=v[id]=w[id]=0.0f;
+    int N = Nx*Ny*Nz;                        // 総セル数
+    int id = index3D(ix,iy,iz,Nx,Ny);        // 自セルの一次元インデックス
+    float r = 1.0f;                          // 初期密度
+    rho[id] = r; u[id]=v[id]=w[id]=0.0f;     // 初期速度はゼロ
     for(int q=0;q<19;++q){
         f[q*N + id] = w19_b0[q] * r;
     }
@@ -122,9 +124,10 @@ __global__ static void kern_reinit_equilibrium(const float* rhoIn,
     int iy = blockIdx.y*blockDim.y + threadIdx.y;
     int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
-    int N = Nx*Ny*Nz;
-    int id = index3D(ix,iy,iz,Nx,Ny);
+    int N = Nx*Ny*Nz;                      // 総セル数
+    int id = index3D(ix,iy,iz,Nx,Ny);      // 自セルインデックス
 
+    // マクロ入力（与えられていない成分は平衡値にフォールバック）
     float r  = rhoIn ? rhoIn[id] : 1.0f;
     float ux = uxIn  ? uxIn[id]  : 0.0f;
     float uy = uyIn  ? uyIn[id]  : 0.0f;
@@ -171,8 +174,8 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
     int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
 
-    int N = Nx*Ny*Nz;
-    int id = index3D(ix,iy,iz,Nx,Ny);
+    int N = Nx*Ny*Nz;                     // 総セル数
+    int id = index3D(ix,iy,iz,Nx,Ny);     // 自セルの一次元インデックス
 
     if(solid[id]){
         // Keep solid f unchanged (like legacy/home), and clamp macros.
@@ -205,6 +208,7 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
         feq[q] = w19_b0[q]*r*(1.0f + 3.0f*eiu + 4.5f*eiu*eiu - 1.5f*uu);
     }
 
+    // このセルを Legacy(BGK) で扱うか HOME で扱うかのフラグ
     const bool useLegacy = (isLegacy != nullptr) ? (isLegacy[id] != 0) : false;
 
     // Collide + stream (push), identical bounce-back handling.
@@ -223,6 +227,7 @@ __global__ static void kern_collide_stream_b0(const float* f, float* fnext,
             fpost = fq + omegaHydro*(dh - fq) + (omegaShear - omegaHydro) * (-ds);
         }
 
+        // 出力先セルの周期境界インデックス
         int x2 = (ix + cx19_b0[q] + Nx) % Nx;
         int y2 = (iy + cy19_b0[q] + Ny) % Ny;
         int z2 = (iz + cz19_b0[q] + Nz) % Nz;
@@ -265,14 +270,14 @@ __global__ static void kern_swap(float* a, float* b, int n){
 // return: 戻り値
 void LBM3D_Hybrid::allocate(){
     const int N = N_;
-    CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19ull*N));
-    CUDA_CHECK(cudaMalloc(&d_fnext_, sizeof(float)*19ull*N));
-    CUDA_CHECK(cudaMalloc(&d_rho_,   sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_u_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_v_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_w_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));
-    CUDA_CHECK(cudaMalloc(&d_isLegacy_, sizeof(unsigned char)*N));
+    CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19ull*N));          // 分布関数 f_i
+    CUDA_CHECK(cudaMalloc(&d_fnext_, sizeof(float)*19ull*N));          // 次ステップ用 f_i
+    CUDA_CHECK(cudaMalloc(&d_rho_,   sizeof(float)*N));                // 密度
+    CUDA_CHECK(cudaMalloc(&d_u_,     sizeof(float)*N));                // 速度 ux
+    CUDA_CHECK(cudaMalloc(&d_v_,     sizeof(float)*N));                // 速度 uy
+    CUDA_CHECK(cudaMalloc(&d_w_,     sizeof(float)*N));                // 速度 uz
+    CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));        // 固体マスク
+    CUDA_CHECK(cudaMalloc(&d_isLegacy_, sizeof(unsigned char)*N));     // Legacy/HOME 切替マスク
 }
 
 // summary: 確保したメモリを解放する
@@ -295,9 +300,9 @@ void LBM3D_Hybrid::release(){
 // param nLegacyCells: 入力パラメータ
 // return: 戻り値
 void LBM3D_Hybrid::init(const Domain& d, int /*nLegacyCells*/){
-    Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
-    tau_ = d.tau;
-    fx_  = d.forceX; fy_ = d.forceY; fz_ = d.forceZ;
+    Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;   // 格子サイズとセル数
+    tau_ = d.tau;                                   // 緩和時間
+    fx_  = d.forceX; fy_ = d.forceY; fz_ = d.forceZ; // 外力
     allocate();
 
     // Default: no legacy cells => pure HOME behavior.
@@ -332,8 +337,8 @@ void LBM3D_Hybrid::setLegacyMapping(const unsigned char* h_isLegacy,
 // param: なし
 // return: 戻り値
 void LBM3D_Hybrid::reset(){
-    dim3 bs(8,8,8);
-    dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
+    dim3 bs(8,8,8);  // 3D ブロックサイズ
+    dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z); // 全セルをカバーするグリッド
     kern_reset<<<gs,bs>>>(d_f_, d_rho_, d_u_, d_v_, d_w_, Nx_,Ny_,Nz_);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -350,7 +355,7 @@ void LBM3D_Hybrid::reinitEquilibriumFromMacro(const float* d_rho,
                                               const float* d_uy,
                                               const float* d_uz)
 {
-    dim3 bs(8,8,8);
+    dim3 bs(8,8,8);  // reset と同じブロック配置
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
     kern_reinit_equilibrium<<<gs,bs>>>(d_rho, d_ux, d_uy, d_uz,
                                        d_f_, d_rho_, d_u_, d_v_, d_w_,
@@ -363,7 +368,7 @@ void LBM3D_Hybrid::reinitEquilibriumFromMacro(const float* d_rho,
 // param substeps: 入力パラメータ
 // return: 戻り値
 void LBM3D_Hybrid::step(int substeps){
-    dim3 bs(8,8,8);
+    dim3 bs(8,8,8);  // collide+stream 用の 3D ブロック
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
 
     // 既存ソルバ(Legacy/Home)と同じ tau から緩和率を作る。
@@ -379,7 +384,7 @@ void LBM3D_Hybrid::step(int substeps){
                                           omegaLegacy, omegaHydro, omegaShear,
                                           fx_,fy_,fz_);
         CUDA_CHECK(cudaGetLastError());
-        int n = 19*N_;
+        int n = 19*N_;                      // f 配列の総要素数
         dim3 bs1(256);
         dim3 gs1((n+255)/256);
         kern_swap<<<gs1,bs1>>>(d_f_, d_fnext_, n);

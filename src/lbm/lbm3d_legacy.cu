@@ -22,6 +22,8 @@ LBM3D_Legacy::~LBM3D_Legacy(){ release(); }
 // 7:(+1,+1,0) 8:(-1,+1,0) 9:(+1,-1,0) 10:(-1,-1,0)
 // 11:(+1,0,+1) 12:(-1,0,+1) 13:(+1,0,-1) 14:(-1,0,-1)
 // 15:(0,+1,+1) 16:(0,-1,+1) 17:(0,+1,-1) 18:(0,-1,-1)
+// cx19, cy19, cz19: 各方向の格子速度ベクトル
+// w19: D3Q19 標準の重み
 __device__ __constant__ int cx19[19] = {0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,  1,-1, 1,-1, 0, 0,  0, 0};
 __device__ __constant__ int cy19[19] = {0, 0, 0, 1,-1, 0, 0, 1, 1,-1,-1,  0, 0, 0, 0, 1,-1,  1,-1};
 __device__ __constant__ int cz19[19] = {0, 0, 0, 0, 0, 1,-1, 0, 0,  0, 0,  1, 1,-1,-1, 1, 1, -1,-1};
@@ -29,81 +31,37 @@ __device__ __constant__ float w19[19] = {1.0f/3.0f,
     1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f};
-
-// summary: opp の処理を行う
-// param i: 入力パラメータ
-// return: 戻り値
+// 方向 i の反対方向インデックスを返すテーブル。
 __device__ __forceinline__ static int opp(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
-
-// summary: index3D の処理を行う
-// param x: 入力パラメータ
-// param y: 入力パラメータ
-// param z: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// return: 戻り値
+// (x,y,z) を一次元インデックスへ変換する（周期境界を前提）。
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
-
-// summary: kern_reset の処理を行う
-// param f: 入力パラメータ
-// param rho: 入力パラメータ
-// param u: 入力パラメータ
-// param v: 入力パラメータ
-// param w: 入力パラメータ
-// param solid: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// 分布関数とマクロ量を rho=1, u=0 の平衡状態にリセットする。
 __global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   const unsigned char* solid, int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
     int iy = blockIdx.y*blockDim.y + threadIdx.y;
     int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
-    int N = Nx*Ny*Nz;
-    int id = index3D(ix,iy,iz,Nx,Ny);
-    float r = 1.0f;
+    int N = Nx*Ny*Nz;                        // 総セル数
+    int id = index3D(ix,iy,iz,Nx,Ny);        // 自セルの一次元インデックス
+    float r = 1.0f;                          // 初期密度
     rho[id] = r; u[id]=v[id]=w[id]=0;
     for(int q=0;q<19;++q){
         f[q*N + id] = w19[q] * r;
     }
 }
-
-// summary: feq の処理を行う
-// param q: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// return: 戻り値
+// D3Q19 の平衡分布 feq(q) を計算する。
 __device__ __forceinline__ static float feq(int q, float rho, float ux, float uy, float uz){
     float eiu = cx19[q]*ux + cy19[q]*uy + cz19[q]*uz;
     float uu = ux*ux + uy*uy + uz*uz;
     return w19[q]*rho*(1.0f + 3.0f*eiu + 4.5f*eiu*eiu - 1.5f*uu);
 }
-
-// summary: kern_collide_stream の処理を行う
-// param f: 入力パラメータ
-// param fnext: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param solid: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param omega: 入力パラメータ
-// param fx: 入力パラメータ
-// param fy: 入力パラメータ
-// param fz: 入力パラメータ
-// return: なし
+// Legacy (BGK) の衝突・ストリーミングを 1 ステップ分行う。
 __global__ static void kern_collide_stream(const float* f, float* fnext,
                                            float* rho, float* ux, float* uy, float* uz,
                                            const unsigned char* solid,
@@ -114,8 +72,8 @@ __global__ static void kern_collide_stream(const float* f, float* fnext,
     int iy = blockIdx.y*blockDim.y + threadIdx.y;
     int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
-    int N = Nx*Ny*Nz;
-    int id = index3D(ix,iy,iz,Nx,Ny);
+    int N = Nx*Ny*Nz;                     // 総セル数
+    int id = index3D(ix,iy,iz,Nx,Ny);     // 自セルの一次元インデックス
 
     if(solid[id]){
         for(int q=0;q<19;++q) fnext[q*N + id] = f[q*N + id];
@@ -131,9 +89,9 @@ __global__ static void kern_collide_stream(const float* f, float* fnext,
         jy += fq*cy19[q];
         jz += fq*cz19[q];
     }
-    float ux0 = (r>0)? jx/r : 0;
-    float uy0 = (r>0)? jy/r : 0;
-    float uz0 = (r>0)? jz/r : 0;
+    float ux0 = (r>0)? jx/r : 0;   // 速度 ux
+    float uy0 = (r>0)? jy/r : 0;   // 速度 uy
+    float uz0 = (r>0)? jz/r : 0;   // 速度 uz
 
     ux0 += fx; uy0 += fy; uz0 += fz;
 
@@ -177,13 +135,13 @@ __global__ static void kern_swap(float* a, float* b, int n){
 // return: 戻り値
 void LBM3D_Legacy::allocate(){
     int N = N_;
-    CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19*N));
-    CUDA_CHECK(cudaMalloc(&d_fnext_, sizeof(float)*19*N));
-    CUDA_CHECK(cudaMalloc(&d_rho_,   sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_u_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_v_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_w_,     sizeof(float)*N));
-    CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));
+    CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19*N));             // 分布関数 f_i
+    CUDA_CHECK(cudaMalloc(&d_fnext_, sizeof(float)*19*N));             // 次ステップ用 f_i
+    CUDA_CHECK(cudaMalloc(&d_rho_,   sizeof(float)*N));                // 密度
+    CUDA_CHECK(cudaMalloc(&d_u_,     sizeof(float)*N));                // 速度 ux
+    CUDA_CHECK(cudaMalloc(&d_v_,     sizeof(float)*N));                // 速度 uy
+    CUDA_CHECK(cudaMalloc(&d_w_,     sizeof(float)*N));                // 速度 uz
+    CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));        // 固体マスク
 }
 
 // summary: 確保したメモリを解放する
@@ -203,9 +161,9 @@ void LBM3D_Legacy::release(){
 // param d: 入力パラメータ
 // return: 戻り値
 void LBM3D_Legacy::init(const Domain& d){
-    Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
-    tau_ = d.tau;
-    fx_ = d.forceX; fy_ = d.forceY; fz_ = d.forceZ;
+    Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;   // 格子サイズとセル数
+    tau_ = d.tau;                                   // 緩和時間
+    fx_ = d.forceX; fy_ = d.forceY; fz_ = d.forceZ; // 外力
     allocate();
     reset();
 }
@@ -221,7 +179,7 @@ void LBM3D_Legacy::setSolidMask(const unsigned char* h_mask){
 // param: なし
 // return: 戻り値
 void LBM3D_Legacy::reset(){
-    dim3 bs(8,8,8);
+    dim3 bs(8,8,8);  // 3D ブロックサイズ
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
     kern_reset<<<gs,bs>>>(d_f_, d_rho_, d_u_, d_v_, d_w_, d_solid_, Nx_,Ny_,Nz_);
     CUDA_CHECK(cudaGetLastError());
@@ -288,9 +246,9 @@ void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
 // param substeps: 入力パラメータ
 // return: 戻り値
 void LBM3D_Legacy::step(int substeps){
-    dim3 bs(8,8,8);
+    dim3 bs(8,8,8);  // collide+stream 用の 3D ブロック
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
-    float omega = 1.0f/tau_;
+    float omega = 1.0f/tau_; // BGK 緩和率
     for(int s=0;s<substeps;++s){
         kern_collide_stream<<<gs,bs>>>(d_f_, d_fnext_, d_rho_, d_u_, d_v_, d_w_,
                                        d_solid_, Nx_,Ny_,Nz_, omega, fx_,fy_,fz_);

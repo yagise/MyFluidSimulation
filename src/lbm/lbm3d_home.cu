@@ -25,7 +25,9 @@ LBM3D_Home::~LBM3D_Home(){ release(); }
 // 2次までの regularized 形式でその場再構成する。
 //
 
-// Standard D3Q19 ordering (same as lbm3d_legacy.cu)
+// D3Q19 の標準順序（lbm3d_legacy.cu と同じ）
+// cx19_h, cy19_h, cz19_h: 各方向の格子速度ベクトル
+// w19_h: 各方向の重み（音速 cs^2 = 1/3 を前提）
 __device__ __constant__ int cx19_h[19] = {0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,  1,-1, 1,-1, 0, 0,  0, 0};
 __device__ __constant__ int cy19_h[19] = {0, 0, 0, 1,-1, 0, 0, 1, 1,-1,-1,  0, 0, 0, 0, 1,-1,  1,-1};
 __device__ __constant__ int cz19_h[19] = {0, 0, 0, 0, 0, 1,-1, 0, 0,  0, 0,  1, 1,-1,-1, 1, 1, -1,-1};
@@ -33,47 +35,23 @@ __device__ __constant__ float w19_h[19] = {1.0f/3.0f,
     1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f};
-
-// summary: opp19 の処理を行う
-// param i: 入力パラメータ
-// return: 戻り値
+// 方向インデックス i の反対方向を返すテーブル。
 __device__ __forceinline__ static int opp19(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
-
-// summary: index3D の処理を行う
-// param x: 入力パラメータ
-// param y: 入力パラメータ
-// param z: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// return: 戻り値
+// (x,y,z) を一次元インデックスに変換する（周期境界前提）。
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
 
 //
 // moments <-> distribution 再構成（2次まで）
-//
-
-// summary: reconstruct_f_post の処理を行う
-// param q: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param Sxx: 入力パラメータ
-// param Sxy: 入力パラメータ
-// param Sxz: 入力パラメータ
-// param Syy: 入力パラメータ
-// param Syz: 入力パラメータ
-// param Szz: 入力パラメータ
-// param oneMinusOmega: 入力パラメータ
-// return: 戻り値
+// 衝突後の分布 f_post(q) をモーメント (rho, u, S) から再構成する。
+// oneMinusOmega = (1 - omega) を渡して BGK の非平衡寄与を調整する。
 __device__ __forceinline__ static float reconstruct_f_post(
-    int q,
-    float rho,
+    int q,             // 方向インデックス
+    float rho,         // 密度
     float ux,
     float uy,
     float uz,
@@ -116,15 +94,7 @@ __device__ __forceinline__ static float reconstruct_f_post(
     // 衝突後（streaming に流す値）
     return feq + oneMinusOmega * fneq;
 }
-
-
-// summary: kern_reset_mom の処理を行う
-// param m: 入力パラメータ
-// param mnext: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
+// moments-only バッファ (m, mnext) を rho=1, u=0, S=0 で埋める初期化カーネル。
 __global__ static void kern_reset_mom(float* m, float* mnext,
                                       int Nx,int Ny,int Nz)
 {
@@ -133,6 +103,7 @@ __global__ static void kern_reset_mom(float* m, float* mnext,
     const int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
 
+    // 総セル数と線形インデックス
     const int N  = Nx*Ny*Nz;
     const int id = index3D(ix,iy,iz,Nx,Ny);
 
@@ -150,16 +121,7 @@ __global__ static void kern_reset_mom(float* m, float* mnext,
     mnext[3*N + id] = 0.0f;
     for(int k=4;k<10;++k) mnext[k*N + id] = 0.0f;
 }
-
-// summary: kern_reinit_from_macro の処理を行う
-// param m: 入力パラメータ
-// param mnext: 入力パラメータ
-// param rhoIn: 入力パラメータ
-// param uxIn: 入力パラメータ
-// param uyIn: 入力パラメータ
-// param uzIn: 入力パラメータ
-// param N: 入力パラメータ
-// return: なし
+// 入力されたマクロ量から moments-only バッファを平衡状態に再構築する。
 __global__ static void kern_reinit_from_macro(float* m, float* mnext,
                                               const float* rhoIn,
                                               const float* uxIn,
@@ -170,6 +132,7 @@ __global__ static void kern_reinit_from_macro(float* m, float* mnext,
     const int id = blockIdx.x*blockDim.x + threadIdx.x;
     if(id>=N) return;
 
+    // マクロ入力（与えられていない成分は平衡値にフォールバック）
     const float rho = rhoIn ? rhoIn[id] : 1.0f;
     const float ux  = uxIn  ? uxIn[id]  : 0.0f;
     const float uy  = uyIn  ? uyIn[id]  : 0.0f;
@@ -192,20 +155,8 @@ __global__ static void kern_reinit_from_macro(float* m, float* mnext,
 
 //
 // collide + stream（gather）
-//
-
-// summary: kern_step_moments_only の処理を行う
-// param m: 入力パラメータ
-// param mnext: 入力パラメータ
-// param solid: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param omega: 入力パラメータ
-// param fx: 入力パラメータ
-// param fy: 入力パラメータ
-// param fz: 入力パラメータ
-// return: なし
+// モーメント (rho,u,S) だけを保持し、衝突後分布をその場で再構築して流入を集計する。
+// solid マスクが立っているセルは平衡に固定し、近傍が solid の場合は bounce-back を適用。
 __global__ static void kern_step_moments_only(const float* m, float* mnext,
                                               const unsigned char* solid,
                                               int Nx,int Ny,int Nz,
@@ -217,10 +168,10 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
     const int iz = blockIdx.z*blockDim.z + threadIdx.z;
     if(ix>=Nx || iy>=Ny || iz>=Nz) return;
 
-    const int N  = Nx*Ny*Nz;
-    const int id = index3D(ix,iy,iz,Nx,Ny);
+    const int N  = Nx*Ny*Nz;                  // 総セル数
+    const int id = index3D(ix,iy,iz,Nx,Ny);   // 自セルの一次元インデックス
 
-    // components
+    // components: m (current) の各物理量へのポインタ
     const float* rhoA = m + 0*N;
     const float* uxA  = m + 1*N;
     const float* uyA  = m + 2*N;
@@ -254,7 +205,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
         return;
     }
 
-    // bounce-back 用に自セルの moments を取っておく
+    // bounce-back 用に自セルの moments を取っておく（近傍が solid のときに使う）
     const float rhoC = rhoA[id];
     const float uxC0 = uxA[id];
     const float uyC0 = uyA[id];
@@ -266,6 +217,7 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
     const float SyzC = SyzA[id];
     const float SzzC = SzzA[id];
 
+    // BGK 緩和係数の 1-omega（非平衡項に掛ける係数）
     const float oneMinusOmega = 1.0f - omega;
 
     // incoming 分布からマクロ量を計算
@@ -351,30 +303,20 @@ __global__ static void kern_step_moments_only(const float* m, float* mnext,
     SyzB[id] = Syz;
     SzzB[id] = Szz;
 }
-
-
-// summary: 必要なメモリを確保する
-// param: なし
-// return: 戻り値
+// moments-only モデルに必要なデバイスメモリを確保する。
 void LBM3D_Home::allocate(){
     const int N = N_;
     CUDA_CHECK(cudaMalloc(&d_m_,     sizeof(float)*10*N));
     CUDA_CHECK(cudaMalloc(&d_mnext_, sizeof(float)*10*N));
     CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));
 }
-
-// summary: 確保したメモリを解放する
-// param: なし
-// return: 戻り値
+// 確保したデバイスメモリをすべて解放し、ヌル初期化する。
 void LBM3D_Home::release(){
     cudaFree(d_m_);     d_m_ = nullptr;
     cudaFree(d_mnext_); d_mnext_ = nullptr;
     cudaFree(d_solid_); d_solid_ = nullptr;
 }
-
-// summary: 初期化処理を行う
-// param d: 入力パラメータ
-// return: 戻り値
+// 与えられたドメイン設定を内部に保持し、バッファを初期化する。
 void LBM3D_Home::init(const Domain& d){
     Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
     tau_ = d.tau;
@@ -382,31 +324,19 @@ void LBM3D_Home::init(const Domain& d){
     allocate();
     reset();
 }
-
-// summary: setSolidMask の処理を行う
-// param h_mask: 入力パラメータ
-// return: 戻り値
+// ホストの固体マスクを GPU メモリへコピーする。
 void LBM3D_Home::setSolidMask(const unsigned char* h_mask){
     CUDA_CHECK(cudaMemcpy(d_solid_, h_mask, sizeof(unsigned char)*N_, cudaMemcpyHostToDevice));
 }
-
-// summary: reset の処理を行う
-// param: なし
-// return: 戻り値
+// rho=1, u=0, S=0 で全セルをリセットする。
 void LBM3D_Home::reset(){
-    dim3 bs(8,8,8);
-    dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
+    dim3 bs(8,8,8);  // 3D ブロックサイズ
+    dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z); // 全セルをカバー
     kern_reset_mom<<<gs,bs>>>(d_m_, d_mnext_, Nx_,Ny_,Nz_);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: reinitEquilibriumFromMacro の処理を行う
-// param d_rho: 入力パラメータ
-// param d_ux: 入力パラメータ
-// param d_uy: 入力パラメータ
-// param d_uz: 入力パラメータ
-// return: 戻り値
+// 与えられたマクロ量から m/mnext を平衡状態に再構築する。
 void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
                                             const float* d_ux,
                                             const float* d_uy,
@@ -414,22 +344,19 @@ void LBM3D_Home::reinitEquilibriumFromMacro(const float* d_rho,
 {
     // NOTE: solidMask はここでは変更しない。
     const int N = N_;
-    dim3 bs(256);
-    dim3 gs((N + bs.x - 1) / bs.x);
+    dim3 bs(256);                                       // 1D ブロック
+    dim3 gs((N + bs.x - 1) / bs.x);                     // 総セル数に対応
     kern_reinit_from_macro<<<gs,bs>>>(d_m_, d_mnext_, d_rho, d_ux, d_uy, d_uz, N);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: step の処理を行う
-// param substeps: 入力パラメータ
-// return: 戻り値
+// HOME モデルの 1 ステップ（collide + stream）を substeps 回繰り返す。
 void LBM3D_Home::step(int substeps){
-    dim3 bs(8,8,8);
+    dim3 bs(8,8,8);  // collide+stream 用の 3D ブロック
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
 
     // ここでは 1緩和（BGK）相当の omega を使用。
-    const float omega = 1.0f / tau_;
+    const float omega = 1.0f / tau_; // 緩和率
 
     for(int s=0;s<substeps;++s){
         kern_step_moments_only<<<gs,bs>>>(d_m_, d_mnext_, d_solid_,
@@ -444,37 +371,24 @@ void LBM3D_Home::step(int substeps){
     }
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-
-// summary: d_rho の処理を行う
-// param: なし
-// return: 戻り値
+// SoA 上での rho 先頭ポインタを返す
 float* LBM3D_Home::d_rho(){ return d_m_ + 0*N_; }
 // summary: d_rho の処理を行う
 // param: なし
 // return: 戻り値
 const float* LBM3D_Home::d_rho() const { return d_m_ + 0*N_; }
-
-// summary: d_u の処理を行う
-// param: なし
-// return: 戻り値
+// SoA 上での ux 先頭ポインタを返す
 float* LBM3D_Home::d_u(){ return d_m_ + 1*N_; }
 // summary: d_u の処理を行う
 // param: なし
 // return: 戻り値
 const float* LBM3D_Home::d_u() const { return d_m_ + 1*N_; }
-
-// summary: d_v の処理を行う
-// param: なし
-// return: 戻り値
+// SoA 上での uy 先頭ポインタを返す
 float* LBM3D_Home::d_v(){ return d_m_ + 2*N_; }
 // summary: d_v の処理を行う
 // param: なし
 // return: 戻り値
 const float* LBM3D_Home::d_v() const { return d_m_ + 2*N_; }
-
-// summary: d_w の処理を行う
-// param: なし
-// return: 戻り値
+// SoA 上での uz 先頭ポインタを返す
 float* LBM3D_Home::d_w(){ return d_m_ + 3*N_; }
 const float* LBM3D_Home::d_w() const { return d_m_ + 3*N_; }
