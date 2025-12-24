@@ -1,4 +1,4 @@
-// sim_runner.hpp
+﻿// sim_runner.hpp
 //
 // 従来法 / HOME 法 / Hybrid(B0) を同じ入出力形式で実験できるようにするための
 // 実行ループ共通化ファイルです。
@@ -8,8 +8,7 @@
 // - run_hybrid_b0() : Hybrid(B0) を headless で回す
 // - B0 の band(d0) 用に distance-to-solid を BFS で作る処理
 //
-// 論文用の整理ポイント:
-// - fan/teardrop の自動投入はしない (必要なら --fan/--teardrop を明示)
+// - 手続き生成の障害物は扱わず、明示された STL だけを使う
 // - 回転体や移動壁などのデバッグ機能はここには入れない
 //
 
@@ -22,27 +21,10 @@
 #include <cuda_runtime.h>
 
 #include "apps/sim_common.hpp"
-
-// summary: launch_speed の処理を行う
-// param u: 入力パラメータ
-// param v: 入力パラメータ
-// param w: 入力パラメータ
-// param out: 入力パラメータ
-// param N: 入力パラメータ
-// return: なし
 extern "C" void launch_speed(const float* u, const float* v, const float* w, float* out, int N);
 
 //
 // 近傍探索（Hybrid B0 用）
-//
-
-// summary: build_distance_to_solid_6n の処理を行う
-// param solidMask: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param maxDist: 入力パラメータ
-// return: 戻り値
 inline std::vector<int> build_distance_to_solid_6n(const std::vector<unsigned char>& solidMask,
                                                    int Nx, int Ny, int Nz,
                                                    int maxDist)
@@ -94,12 +76,6 @@ inline std::vector<int> build_distance_to_solid_6n(const std::vector<unsigned ch
     }
     return dist;
 }
-
-// summary: build_legacy_mask_from_distance の処理を行う
-// param solidMask: 入力パラメータ
-// param distToSolid: 入力パラメータ
-// param d0: 入力パラメータ
-// return: 戻り値
 inline std::vector<unsigned char> build_legacy_mask_from_distance(const std::vector<unsigned char>& solidMask,
                                                                   const std::vector<int>& distToSolid,
                                                                   int d0)
@@ -124,12 +100,7 @@ inline std::vector<unsigned char> build_legacy_mask_from_distance(const std::vec
 // / - 外力: dom.fx,fy,fz を Domain にセット（各ソルバ内部で適用）
 // / - VTK 出力: rho / |u| / vel を一定間隔で出力
 template <class Solver>
-// summary: 処理を実行する
-// param domCfg: 入力パラメータ
-// param obsCfg: 入力パラメータ
-// param runCfg: 入力パラメータ
-// param tag: 入力パラメータ
-// return: 戻り値
+// 処理を実行する
 inline int run_single_solver(const DomainConfig& domCfg,
                              const ObstacleConfig& obsCfg,
                              const RunConfig& runCfg,
@@ -161,7 +132,6 @@ inline int run_single_solver(const DomainConfig& domCfg,
     //
     // 3) 初期条件（rho を作って平衡へ）
     //
-    // 論文用整理:
     // - 初期条件の作り方を全ソルバで統一するため、
     // rho,u を与えて平衡へAPI を用意している。
     // - Legacy は分布 f_i を平衡に再構成する。
@@ -229,12 +199,7 @@ inline int run_single_solver(const DomainConfig& domCfg,
 // /
 // / Hybrid は "setLegacyMapping" が必要なため別関数に分ける。
 template <class HybridSolver>
-// summary: 処理を実行する
-// param domCfg: 入力パラメータ
-// param obsCfg: 入力パラメータ
-// param runCfg: 入力パラメータ
-// param hybCfg: 入力パラメータ
-// return: 戻り値
+// 処理を実行する
 inline int run_hybrid_b0(const DomainConfig& domCfg,
                          const ObstacleConfig& obsCfg,
                          const RunConfig& runCfg,

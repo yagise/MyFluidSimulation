@@ -1,4 +1,4 @@
-"""summary: plot_tgv.py の処理内容をまとめたスクリプト"""
+"""TGV 計算結果の CSV を読み込み、エネルギーや L2 誤差を描画する"""
 
 import csv
 import sys
@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 
 
 def load(csv_path):
-    """summary: ファイル等から読み込む
-param csv_path: 入力パラメータ
-return: 戻り値"""
+    """CSV を読み込み、時刻と各種メトリクスの配列を返す"""
     times = []
     e_exact = []
     e_legacy = []
@@ -30,9 +28,7 @@ return: 戻り値"""
 
 
 def main():
-    """summary: スクリプトのエントリポイントを実行する
-param: なし
-return: 戻り値"""
+    """コマンドライン引数を解釈してグラフを描画する"""
     if len(sys.argv) < 2:
         print("usage: python scripts/plot_tgv.py <tgv_results.csv> [out.png]")
         sys.exit(1)
@@ -67,3 +63,4 @@ return: 戻り値"""
 
 if __name__ == "__main__":
     main()
+

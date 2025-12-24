@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 #include <vector>
 #include <glm/vec3.hpp>
@@ -9,7 +9,6 @@
 //
 // TriangleMesh をセルが solid(1) か fluid(0) かの 3D マスクへ変換する。
 //
-// 論文用の意図:
 // - Legacy/HOME/Hybrid の境界条件（どのセルを solid とみなすか）を揃える
 // - AMR(refine) は境界付近のボクセル化誤差を減らすための補助機能
 //
@@ -17,11 +16,6 @@
 struct VoxelParams {
     int Nx=128, Ny=128, Nz=128;
     float uniformScale = 0.9f; // fraction of box edge
-    // summary: vec3 の処理を行う
-    // param f: 入力パラメータ
-    // param f: 入力パラメータ
-    // param f: 入力パラメータ
-    // return: 戻り値
     glm::vec3 translate = glm::vec3(0.5f,0.5f,0.5f); // center in unit cube
     // AMR: supersampling(refine^3) してから被覆率で downsample する。
     // coverageThreshold=0.5 なら半分以上埋まっていれば solid。

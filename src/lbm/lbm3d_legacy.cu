@@ -1,4 +1,4 @@
-
+﻿
 #include "lbm3d_legacy.hpp"
 #include "../common/cuda_utils.hpp"
 #include <cmath>
@@ -10,13 +10,10 @@ extern "C" void reinit_equilibrium_from_macro(const float* d_rho,
                                               const float* d_uz,
                                               float*       d_f,
                                               int          N);
-
-// summary: 確保したメモリを解放する
-// param: なし
-// return: なし
+// 確保したメモリを解放する
 LBM3D_Legacy::~LBM3D_Legacy(){ release(); }
 
-// Standard D3Q19 ordering:
+// D3Q19 の標準的な方向並び:
 // 0:(0,0,0)
 // 1:(+1,0,0) 2:(-1,0,0) 3:(0,+1,0) 4:(0,-1,0) 5:(0,0,+1) 6:(0,0,-1)
 // 7:(+1,+1,0) 8:(-1,+1,0) 9:(+1,-1,0) 10:(-1,-1,0)
@@ -29,37 +26,13 @@ __device__ __constant__ float w19[19] = {1.0f/3.0f,
     1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,1.0f/18.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,
     1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f,1.0f/36.0f};
-
-// summary: opp の処理を行う
-// param i: 入力パラメータ
-// return: 戻り値
 __device__ __forceinline__ static int opp(int i){
     const int o[19] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17};
     return o[i];
 }
-
-// summary: index3D の処理を行う
-// param x: 入力パラメータ
-// param y: 入力パラメータ
-// param z: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// return: 戻り値
 __device__ __forceinline__ static int index3D(int x,int y,int z,int Nx,int Ny){
     return (z*Ny + y)*Nx + x;
 }
-
-// summary: kern_reset の処理を行う
-// param f: 入力パラメータ
-// param rho: 入力パラメータ
-// param u: 入力パラメータ
-// param v: 入力パラメータ
-// param w: 入力パラメータ
-// param solid: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: なし
 __global__ static void kern_reset(float* f, float* rho, float* u, float* v, float* w,
                                   const unsigned char* solid, int Nx,int Ny,int Nz){
     int ix = blockIdx.x*blockDim.x + threadIdx.x;
@@ -74,36 +47,11 @@ __global__ static void kern_reset(float* f, float* rho, float* u, float* v, floa
         f[q*N + id] = w19[q] * r;
     }
 }
-
-// summary: feq の処理を行う
-// param q: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// return: 戻り値
 __device__ __forceinline__ static float feq(int q, float rho, float ux, float uy, float uz){
     float eiu = cx19[q]*ux + cy19[q]*uy + cz19[q]*uz;
     float uu = ux*ux + uy*uy + uz*uz;
     return w19[q]*rho*(1.0f + 3.0f*eiu + 4.5f*eiu*eiu - 1.5f*uu);
 }
-
-// summary: kern_collide_stream の処理を行う
-// param f: 入力パラメータ
-// param fnext: 入力パラメータ
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param solid: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param omega: 入力パラメータ
-// param fx: 入力パラメータ
-// param fy: 入力パラメータ
-// param fz: 入力パラメータ
-// return: なし
 __global__ static void kern_collide_stream(const float* f, float* fnext,
                                            float* rho, float* ux, float* uy, float* uz,
                                            const unsigned char* solid,
@@ -146,7 +94,6 @@ __global__ static void kern_collide_stream(const float* f, float* fnext,
         int z2 = (iz + cz19[q] + Nz) % Nz;
         int id2 = index3D(x2,y2,z2,Nx,Ny);
         if(solid[id2]){
-            // 論文用整理:
             // 移動壁補正（回転体など）は本比較では不要なので外し、
             // 反射(バウンスバック)のみを行う。
             int qo = opp(q);
@@ -161,20 +108,11 @@ __global__ static void kern_collide_stream(const float* f, float* fnext,
     uy[id]  = uy0;
     uz[id]  = uz0;
 }
-
-// summary: kern_swap の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// param n: 入力パラメータ
-// return: なし
 __global__ static void kern_swap(float* a, float* b, int n){
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i<n){ float t=a[i]; a[i]=b[i]; b[i]=t; }
 }
-
-// summary: 必要なメモリを確保する
-// param: なし
-// return: 戻り値
+// 必要なメモリを確保する
 void LBM3D_Legacy::allocate(){
     int N = N_;
     CUDA_CHECK(cudaMalloc(&d_f_,     sizeof(float)*19*N));
@@ -185,10 +123,7 @@ void LBM3D_Legacy::allocate(){
     CUDA_CHECK(cudaMalloc(&d_w_,     sizeof(float)*N));
     CUDA_CHECK(cudaMalloc(&d_solid_, sizeof(unsigned char)*N));
 }
-
-// summary: 確保したメモリを解放する
-// param: なし
-// return: 戻り値
+// 確保したメモリを解放する
 void LBM3D_Legacy::release(){
     cudaFree(d_f_); d_f_=nullptr;
     cudaFree(d_fnext_); d_fnext_=nullptr;
@@ -198,10 +133,6 @@ void LBM3D_Legacy::release(){
     cudaFree(d_w_); d_w_=nullptr;
     cudaFree(d_solid_); d_solid_=nullptr;
 }
-
-// summary: 初期化処理を行う
-// param d: 入力パラメータ
-// return: 戻り値
 void LBM3D_Legacy::init(const Domain& d){
     Nx_=d.Nx; Ny_=d.Ny; Nz_=d.Nz; N_=Nx_*Ny_*Nz_;
     tau_ = d.tau;
@@ -209,17 +140,9 @@ void LBM3D_Legacy::init(const Domain& d){
     allocate();
     reset();
 }
-
-// summary: setSolidMask の処理を行う
-// param h_mask: 入力パラメータ
-// return: 戻り値
 void LBM3D_Legacy::setSolidMask(const unsigned char* h_mask){
     CUDA_CHECK(cudaMemcpy(d_solid_, h_mask, sizeof(unsigned char)*N_, cudaMemcpyHostToDevice));
 }
-
-// summary: reset の処理を行う
-// param: なし
-// return: 戻り値
 void LBM3D_Legacy::reset(){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -227,13 +150,6 @@ void LBM3D_Legacy::reset(){
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: reinitEquilibriumFromMacro の処理を行う
-// param d_rho: 入力パラメータ
-// param d_ux: 入力パラメータ
-// param d_uy: 入力パラメータ
-// param d_uz: 入力パラメータ
-// return: 戻り値
 void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,
@@ -283,10 +199,6 @@ void LBM3D_Legacy::reinitEquilibriumFromMacro(const float* d_rho,
     CUDA_CHECK(cudaMemcpy(d_fnext_, d_f_, bytesF, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-// summary: step の処理を行う
-// param substeps: 入力パラメータ
-// return: 戻り値
 void LBM3D_Legacy::step(int substeps){
     dim3 bs(8,8,8);
     dim3 gs((Nx_+bs.x-1)/bs.x, (Ny_+bs.y-1)/bs.y, (Nz_+bs.z-1)/bs.z);
@@ -302,48 +214,15 @@ void LBM3D_Legacy::step(int substeps){
     }
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-// summary: d_f の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_f()       { return d_f_; }
-// summary: d_f の処理を行う
-// param: なし
-// return: 戻り値
 const float* LBM3D_Legacy::d_f() const { return d_f_; }
-// summary: d_fnext の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_fnext()       { return d_fnext_; }
-// summary: d_fnext の処理を行う
-// param: なし
-// return: 戻り値
 const float* LBM3D_Legacy::d_fnext() const { return d_fnext_; }
-// summary: d_rho の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_rho()       { return d_rho_; }
-// summary: d_rho の処理を行う
-// param: なし
-// return: 戻り値
 const float* LBM3D_Legacy::d_rho() const { return d_rho_; }
-// summary: d_u の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_u()         { return d_u_; }
-// summary: d_u の処理を行う
-// param: なし
-// return: 戻り値
 const float* LBM3D_Legacy::d_u()   const { return d_u_; }
-// summary: d_v の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_v()         { return d_v_; }
-// summary: d_v の処理を行う
-// param: なし
-// return: 戻り値
 const float* LBM3D_Legacy::d_v()   const { return d_v_; }
-// summary: d_w の処理を行う
-// param: なし
-// return: 戻り値
 float*       LBM3D_Legacy::d_w()         { return d_w_; }
 const float* LBM3D_Legacy::d_w()   const { return d_w_; }

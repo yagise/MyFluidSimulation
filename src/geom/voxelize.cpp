@@ -1,45 +1,17 @@
-#include "voxelize.hpp"
+﻿#include "voxelize.hpp"
 #include <queue>
 #include <tuple>
 #include <algorithm>
 #include <cmath>
 #include <glm/glm.hpp>
-
-// summary: vmin3 の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// return: 戻り値
 static inline glm::vec3 vmin3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::min(a.x,b.x), std::min(a.y,b.y), std::min(a.z,b.z));
 }
-// summary: vmax3 の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// return: 戻り値
 static inline glm::vec3 vmax3(const glm::vec3& a, const glm::vec3& b){
     return glm::vec3(std::max(a.x,b.x), std::max(a.y,b.y), std::max(a.z,b.z));
 }
-
-// summary: min の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// param c: 入力パラメータ
-// return: 戻り値
 static inline float fmin3(float a,float b,float c){ return std::min(a,std::min(b,c)); }
-// summary: max の処理を行う
-// param a: 入力パラメータ
-// param b: 入力パラメータ
-// param c: 入力パラメータ
-// return: 戻り値
 static inline float fmax3(float a,float b,float c){ return std::max(a,std::max(b,c)); }
-
-// summary: triBoxOverlap_SAT の処理を行う
-// param c: 入力パラメータ
-// param half: 入力パラメータ
-// param v0: 入力パラメータ
-// param v1: 入力パラメータ
-// param v2: 入力パラメータ
-// return: 戻り値
 static bool triBoxOverlap_SAT(const glm::vec3& c, const glm::vec3& half,
                               const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
 {
@@ -99,13 +71,6 @@ static bool triBoxOverlap_SAT(const glm::vec3& c, const glm::vec3& half,
     }
     return true; // 全テストを通過 → 交差
 }
-
-// summary: compute_fit_transform の処理を行う
-// param m: 入力パラメータ
-// param vp: 入力パラメータ
-// param s: 入力パラメータ
-// param trans: 入力パラメータ
-// return: なし
 static void compute_fit_transform(const TriangleMesh& m, const VoxelParams& vp,
                                   float& s, glm::vec3& trans)
 {
@@ -117,11 +82,6 @@ static void compute_fit_transform(const TriangleMesh& m, const VoxelParams& vp,
 }
 
 struct Tri { glm::vec3 v0, v1, v2; };
-
-// summary: make_transformed_tris の処理を行う
-// param meshIn: 入力パラメータ
-// param params: 入力パラメータ
-// return: 戻り値
 static std::vector<Tri> make_transformed_tris(const TriangleMesh& meshIn, const VoxelParams& params){
     float s = 1.0f; glm::vec3 trans(0.0f);
     compute_fit_transform(meshIn, params, s, trans);
@@ -141,13 +101,6 @@ static std::vector<Tri> make_transformed_tris(const TriangleMesh& meshIn, const 
     }
     return tris;
 }
-
-// summary: ボクセル化処理を行う
-// param tris: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// return: 戻り値
 static std::vector<unsigned char> voxelize_single_resolution(const std::vector<Tri>& tris,
                                                              int Nx,int Ny,int Nz)
 {
@@ -219,15 +172,6 @@ static std::vector<unsigned char> voxelize_single_resolution(const std::vector<T
     }
     return solid;
 }
-
-// summary: downsample_amr の処理を行う
-// param fine: 入力パラメータ
-// param refine: 入力パラメータ
-// param Nx: 入力パラメータ
-// param Ny: 入力パラメータ
-// param Nz: 入力パラメータ
-// param threshold: 入力パラメータ
-// return: 戻り値
 static std::vector<unsigned char> downsample_amr(const std::vector<unsigned char>& fine,
                                                  int refine,
                                                  int Nx, int Ny, int Nz,
@@ -268,11 +212,6 @@ static std::vector<unsigned char> downsample_amr(const std::vector<unsigned char
     }
     return coarse;
 }
-
-// summary: ボクセル化処理を行う
-// param meshIn: 入力パラメータ
-// param params: 入力パラメータ
-// return: 戻り値
 std::vector<unsigned char> voxelize_mesh_to_mask(const TriangleMesh& meshIn, const VoxelParams& params)
 {
     auto tris = make_transformed_tris(meshIn, params);

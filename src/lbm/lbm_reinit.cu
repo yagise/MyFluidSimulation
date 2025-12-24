@@ -1,4 +1,4 @@
-#include <cuda_runtime.h>
+﻿#include <cuda_runtime.h>
 #include "lbm_layout.hpp"
 
 // --- D3Q19 (cs^2 = 1/3)
@@ -16,15 +16,6 @@ __constant__ float wi[19]  = {
     1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,
     1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f,1.f/36.f
 };
-
-// summary: kern_reinit_eq の処理を行う
-// param rho: 入力パラメータ
-// param ux: 入力パラメータ
-// param uy: 入力パラメータ
-// param uz: 入力パラメータ
-// param f: 入力パラメータ
-// param N: 入力パラメータ
-// return: なし
 __global__ void kern_reinit_eq(const float*  rho,
                                const float*  ux,
                                const float*  uy,
@@ -56,15 +47,6 @@ __global__ void kern_reinit_eq(const float*  rho,
         f[fIndex(q,i,N)] = feq;
     }
 }
-
-// summary: reinit_equilibrium_from_macro の処理を行う
-// param d_rho: 入力パラメータ
-// param d_ux: 入力パラメータ
-// param d_uy: 入力パラメータ
-// param d_uz: 入力パラメータ
-// param d_f: 入力パラメータ
-// param N: 入力パラメータ
-// return: なし
 extern "C" void reinit_equilibrium_from_macro(const float* d_rho,
                                               const float* d_ux,
                                               const float* d_uy,

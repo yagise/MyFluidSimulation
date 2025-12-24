@@ -1,17 +1,5 @@
-#!/usr/bin/env python3
-"""summary: plot_b0_sweep.py の処理内容をまとめたスクリプト
-
-plot_b0_sweep.py
-
-Plot B0 sweep CSV produced by:
- fluidsim_compare.exe --hybrid-sweep-max M --hybrid-sweep-steps S ...
-
-Usage:
- python scripts/plot_b0_sweep.py results_b0/b0_teardrop_amr2.csv out.png
-
-Notes:
-- The sweep output includes a log line like "[hybrid] ...", then a CSV header.
- This script skips non-CSV lines automatically."""
+﻿#!/usr/bin/env python3
+"""B0 スイープ結果 CSV を読み込み、誤差をプロットするスクリプト"""
 import sys
 import re
 import csv
@@ -20,9 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 def read_csv(path: Path):
-    """summary: 入力を読み取る
-param path: 入力パラメータ
-return: 戻り値"""
+    """CSV を読み込み、辞書のリストで返す"""
     rows = []
     with path.open("r", encoding="utf-8", errors="ignore") as f:
         # keep only the CSV header + numeric lines
@@ -42,18 +28,14 @@ return: 戻り値"""
     return rows
 
 def to_float(x):
-    """summary: to_float の処理を行う
-param x: 入力パラメータ
-return: 戻り値"""
+    """数値化できない値は NaN にする簡易パーサ"""
     try:
         return float(x)
     except Exception:
         return float("nan")
 
 def main():
-    """summary: スクリプトのエントリポイントを実行する
-param: なし
-return: 戻り値"""
+    """コマンドライン引数を解釈してグラフを描画する"""
     if len(sys.argv) < 3:
         print("Usage: python scripts/plot_b0_sweep.py <in.csv> <out.png>")
         sys.exit(1)

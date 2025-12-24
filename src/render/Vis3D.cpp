@@ -1,4 +1,4 @@
-
+﻿
 #include "Vis3D.hpp"
 #include <stdexcept>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -7,11 +7,7 @@ static const float quad[30] = {
    -1,-1,0, 0,0,   1,-1,0, 1,0,   1,1,0, 1,1,
    -1,-1,0, 0,0,   1,1,0, 1,1,  -1,1,0, 0,1
 };
-
-// summary: compile_shader の処理を行う
-// param type: 入力パラメータ
-// param src: 入力パラメータ
-// return: 戻り値
+// シェーダをコンパイルしてエラー時に例外を投げる
 static GLuint compile_shader(GLenum type, const char* src){
     GLuint s = glCreateShader(type);
     glShaderSource(s,1,&src,nullptr);
@@ -29,9 +25,6 @@ static const char* vsrc =
     "layout(location=0) in vec3 pos;"
     "layout(location=1) in vec2 uv;"
     "out vec2 vUV;"
-    // summary: vec4 の処理を行う
-    // param: なし
-    // return: 戻り値
     "void main(){ gl_Position = vec4(pos,1); vUV = uv; }";
 
 static const char* fsrcVol =
@@ -44,9 +37,6 @@ static const char* fsrcVol =
     "uniform float     uScale;                                \n"
     "uniform float     uThresh;                               \n"
     "\n"
-    // summary: colormap の処理を行う
-    // param t: 入力パラメータ
-    // return: 戻り値
     "vec3 colormap(float t){                                  \n"
     "   t = clamp(t,0.0,1.0);                                 \n"
     "   if(t < 0.25) return mix(vec3(0.02,0.02,0.2), vec3(0.0,0.7,1.0), t*4.0);\n"
@@ -55,9 +45,6 @@ static const char* fsrcVol =
     "   return mix(vec3(1.0,0.9,0.0), vec3(1.0,0.1,0.0), (t-0.75)*4.0);\n"
     "}\n"
     "\n"
-    // summary: sampleVol の処理を行う
-    // param p: 入力パラメータ
-    // return: 戻り値
     "vec4 sampleVol(vec3 p){                                  \n"
     "   float s = texture(uTex,p).r;                          \n"
     "   float scaled = s * uScale;                            \n"
@@ -68,9 +55,6 @@ static const char* fsrcVol =
     "   vec3 col = colormap(tCol);                            \n"
     "   return vec4(col, a);                                  \n"
     "}\n"
-    // summary: 実行エントリポイントとしてシミュレーションを開始する
-    // param: なし
-    // return: 終了コード
     "void main(){                                             \n"
     "   vec4 ndc = vec4(vUV*2.0-1.0, 0.0, 1.0);               \n"
     "   vec4 wPos = uInvPV * ndc;                             \n"
@@ -92,14 +76,7 @@ static const char* fsrcVol =
     "   }                                                     \n"
     "   frag = vec4(acc.rgb, 1.0);                            \n"
     "}";
-
-// summary: Nz の処理を行う
-// param nx: 入力パラメータ
-// param ny: 入力パラメータ
-// param nx: 入力パラメータ
-// param ny: 入力パラメータ
-// param nz: 入力パラメータ
-// return: 戻り値
+// 3D テクスチャとフルスクリーンクアッドのセットアップ
 Vis3D::Vis3D(int nx,int ny,int nz):Nx(nx),Ny(ny),Nz(nz){
     glGenTextures(1,&tex3d);
     glBindTexture(GL_TEXTURE_3D,tex3d);
@@ -133,18 +110,12 @@ Vis3D::Vis3D(int nx,int ny,int nz):Nx(nx),Ny(ny),Nz(nz){
     glUseProgram(progVol);
     glUniform1i(glGetUniformLocation(progVol,"uTex"),0);
 }
-
-// summary: ensureHostBuffers の処理を行う
-// param: なし
-// return: 戻り値
+// ホスト側のバッファが必要サイズか確認・確保する
 void Vis3D::ensureHostBuffers(){
     std::size_t cells = (std::size_t)Nx*Ny*Nz;
     if(h_scalar.size()!=cells) h_scalar.resize(cells);
 }
-
-// summary: uploadScalar の処理を行う
-// param d_field: 入力パラメータ
-// return: 戻り値
+// デバイスのスカラー場を読み戻し、3D テクスチャに転送する
 void Vis3D::uploadScalar(const float* d_field){
     ensureHostBuffers();
     std::size_t cells = (std::size_t)Nx*Ny*Nz;
@@ -152,15 +123,7 @@ void Vis3D::uploadScalar(const float* d_field){
     glBindTexture(GL_TEXTURE_3D,tex3d);
     glTexSubImage3D(GL_TEXTURE_3D, 0, 0,0,0, Nx,Ny,Nz, GL_RED, GL_FLOAT, h_scalar.data());
 }
-
-// summary: 描画処理を行う
-// param P: 入力パラメータ
-// param V: 入力パラメータ
-// param camPos: 入力パラメータ
-// param step: 入力パラメータ
-// param scale: 入力パラメータ
-// param threshold: 入力パラメータ
-// return: 戻り値
+// 逆 PV 行列からレイを作り、閾値付きのレイマーチで可視化する
 void Vis3D::renderVolume(const glm::mat4& P, const glm::mat4& V,
                          const glm::vec3& camPos, float step, float scale, float threshold){
     glm::mat4 invPV = glm::inverse(P*V);

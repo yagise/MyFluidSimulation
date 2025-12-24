@@ -1,34 +1,29 @@
-# summary: B0 sweep をまとめて実行する補助スクリプト
-# 
-# Windows PowerShell helper to run the B0 sweep in headless mode
-# and save CSV outputs.
+# B0 スイープをヘッドレスでまとめて実行し、CSV を保存する補助スクリプト
 #
-# Usage (from repo root, after building Release x64):
+# 使い方（Release x64 をビルド済みの状態でリポジトリ直下から実行）:
 # powershell -ExecutionPolicy Bypass -File scripts\run_b0_sweeps.ps1 -Exe .\build\Release\fluidsim_compare.exe
 #
-# If you use Visual Studio CMake integration, the exe path is often:
-# .\out\build\x64-Release\fluidsim_compare.exe
-# 
+# Visual Studio の CMake 統合を使う場合、exe は .\out\build\x64-Release\fluidsim_compare.exe になることが多い
+#
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$Exe,
+    [Parameter(Mandatory=$true)]
+    [string]$Stl,
     [string]$OutDir = "results_b0",
     [int]$SweepMax = 6,
     [int]$Steps = 800,
-    # "wall AMR" settings used by the obstacle voxelizer.
-    # refine=1 means no supersampling; 2..4 usually gives a visible difference.
+# 障害物ボクセル化で使う壁 AMR 設定
+# refine=1 なら非 AMR、2-4 で見た目が変わりやすい
     [int[]]$AmrFactors = @(1,2,3),
-    # Coverage threshold to mark a coarse voxel solid.
-    # 0.5 is the default; try 0.3 and 0.7 to see sensitivity.
+# 粗いボクセルを固体とみなす占有率の閾値
+# 0.5 が標準、0.3/0.7 で感度を確認
     [double[]]$AmrThresholds = @(0.5)
 )
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
-
-# summary: Run-One の処理を行う
-# param: なし
-# return: なし
+# 単一設定のスイープを実行するヘルパー
 function Run-One {
     param(
         [string]$Tag,
@@ -39,19 +34,16 @@ function Run-One {
     & $Exe @Args | Out-File $out -Encoding ascii
 }
 
-# Procedural shapes (no external files):
+if (-not (Test-Path $Stl)) {
+    throw "STL not found: $Stl"
+}
+$shapeTag = [System.IO.Path]::GetFileNameWithoutExtension($Stl)
+
 foreach($amr in $AmrFactors){
   foreach($thr in $AmrThresholds){
     $thrTag = ("thr" + ([string]$thr).Replace('.', 'p'))
-    Run-One -Tag ("teardrop_amr" + $amr + "_" + $thrTag) -Args @(
-        "--teardrop",
-        "--amr-factor", "$amr",
-        "--amr-threshold", "$thr",
-        "--hybrid-sweep-max", "$SweepMax",
-        "--hybrid-sweep-steps", "$Steps")
-
-    Run-One -Tag ("fan_amr" + $amr + "_" + $thrTag)      -Args @(
-        "--fan",
+    Run-One -Tag ("${shapeTag}_amr" + $amr + "_" + $thrTag) -Args @(
+        "--stl", $Stl,
         "--amr-factor", "$amr",
         "--amr-threshold", "$thr",
         "--hybrid-sweep-max", "$SweepMax",
@@ -59,8 +51,5 @@ foreach($amr in $AmrFactors){
   }
 }
 
-# STL example (edit the path):
-# $stl = ".\assets\your_model.stl"
-# Run-One -Tag ("stl_amr2") -Args @("--stl", $stl, "--amr-factor", "2", "--hybrid-sweep-max", "$SweepMax", "--hybrid-sweep-steps", "$Steps")
-
 Write-Host "Done. CSV files are in $OutDir"
+

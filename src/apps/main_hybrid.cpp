@@ -1,4 +1,4 @@
-// main_hybrid.cpp
+﻿// main_hybrid.cpp
 //
 // 従来法 + HOME 法の Hybrid(B0) を回すための headless 実行ファイル。
 //
@@ -14,11 +14,7 @@
 #include "apps/sim_runner.hpp"
 
 #include "lbm/lbm3d_hybrid.hpp"
-
-// summary: 実行エントリポイントとしてシミュレーションを開始する
-// param argc: 入力パラメータ
-// param argv: 入力パラメータ
-// return: 終了コード
+// 実行エントリポイントとしてシミュレーションを開始する
 int main(int argc, char** argv) {
     DomainConfig dom;
     ObstacleConfig obs;

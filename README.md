@@ -10,8 +10,8 @@ CUDA 上で動く 3D LBM(D3Q19) の実験用コードです。
 ベンチマーク用の `fluidsim_tgv` / `fluidsim_bench` も含みます。
 
 > **重要**
-> - デフォルトでは **障害物モデル(fan / teardrop) 自動投入**は行いません。
->   障害物を入れる場合は `--stl` / `--fan` / `--teardrop` を **必ず明示**してください。
+> - デフォルトでは障害物モデルの自動投入は行いません。
+>   障害物を入れる場合は `--stl` を **明示**してください。
 > - 回転体や移動壁などの「比較条件を増やす機能」は入れていません。
 ---
 
@@ -88,8 +88,8 @@ cmake -S . -B build \
 ./build/fluidsim_compare --stl path/to/model.stl
 
 # 手続き生成モデルは明示したときだけ使われます。
-./build/fluidsim_compare --teardrop
-./build/fluidsim_compare --fan
+# STL を明示して実行します。
+# ./build/fluidsim_compare --stl path/to/model.stl
 ```
 
 キー操作
@@ -158,5 +158,4 @@ Python 依存は `requirements.txt` を参照してください。
 ├─ scripts/       # Python / PowerShell 補助
 └─ docs/          # ビルド・使い方・実験手順
 ```
-
 

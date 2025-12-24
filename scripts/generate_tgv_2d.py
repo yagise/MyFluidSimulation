@@ -1,17 +1,6 @@
-"""summary: generate_tgv_2d.py の処理内容をまとめたスクリプト
+"""2D テイラー・グリーン渦 (Taylor-Green vortex) の初期場 (rho, u, v) を生成し VTK/CSV に出力する。
 
-generate_tgv_2d.py
-
-2D テイラー・グリーン渦 (Taylor-Green vortex) の初期場を Python で生成するスクリプト。
-
-このリポジトリの fluidsim_tgv (src/bench/main_taylor_green.cpp) と同じ式を使い、
-格子点(セル中心)における (rho, u, v) を計算して VTK(LEGACY ASCII) に書き出します。
-
-論文用メモ:
- - 2Dで渦を発生させるコードがあったはずという要望に対応し、
- 解析解に基づく初期条件生成をスクリプトとして残します。
- - 3D ソルバで可視化したい場合は、Nz=1 として使うか、
- 出力された VTK を任意のツール(ParaView など)で読み込んでください。
+fluisim_tgv (src/bench/main_taylor_green.cpp) と同じ式で格子点（セル中心）を評価する。
 
 実行例:
  python scripts/generate_tgv_2d.py --nx 128 --ny 128 --u0 0.06 --out out_vtk
@@ -39,23 +28,11 @@ class Field2D:
 
 
 def analytic_tgv_cell_center(ix: int, iy: int, nx: int, ny: int, u0: float, cs2: float = 1.0 / 3.0) -> Tuple[float, float, float]:
-    """summary: analytic_tgv_cell_center の処理を行う
-param ix: 入力パラメータ
-param iy: 入力パラメータ
-param nx: 入力パラメータ
-param ny: 入力パラメータ
-param u0: 入力パラメータ
-param cs2: 入力パラメータ
-return: 戻り値
+    """セル中心の Taylor-Green 渦解析解 (t=0) を返す。
 
-セル中心での Taylor-Green 渦の解析解 (t=0) を返す。
-
- C++ 側と合わせて、波数は
- kx_wave = 2*pi / Nx, ky_wave = 2*pi / Ny
- とし、tx=(ix+0.5)*kx_wave, ty=(iy+0.5)*ky_wave で評価する。
-
- Returns:
- rho, u, v"""
+    波数は kx_wave=2*pi/Nx, ky_wave=2*pi/Ny とし、
+    tx=(ix+0.5)*kx_wave, ty=(iy+0.5)*ky_wave で評価する。
+    """
     two_pi = 2.0 * math.pi
     kx_wave = two_pi / float(nx)
     ky_wave = two_pi / float(ny)
@@ -75,7 +52,7 @@ return: 戻り値
 
 
 def build_tgv2d(nx: int, ny: int, u0: float) -> Field2D:
-    """summary: データを生成する
+    """データを生成する
 param nx: 入力パラメータ
 param ny: 入力パラメータ
 param u0: 入力パラメータ
@@ -98,7 +75,7 @@ return: 戻り値
 
 
 def write_vtk_structured_points_scalar(path: str, name: str, nx: int, ny: int, nz: int, data: List[float]) -> None:
-    """summary: ファイル等へ書き出す
+    """ファイル等へ書き出す
 param path: 入力パラメータ
 param name: 入力パラメータ
 param nx: 入力パラメータ
@@ -125,7 +102,7 @@ VTK(LEGACY ASCII) の STRUCTURED_POINTS としてスカラー場を書き出す�
 
 
 def write_vtk_structured_points_vector(path: str, name: str, nx: int, ny: int, nz: int, data_xyz: List[Tuple[float, float, float]]) -> None:
-    """summary: ファイル等へ書き出す
+    """ファイル等へ書き出す
 param path: 入力パラメータ
 param name: 入力パラメータ
 param nx: 入力パラメータ
@@ -151,9 +128,7 @@ VTK(LEGACY ASCII) の STRUCTURED_POINTS としてベクトル場を書き出す�
 
 
 def main() -> int:
-    """summary: スクリプトのエントリポイントを実行する
-param: なし
-return: 終了コード"""
+    """スクリプトのエントリポイントを実行する"""
     parser = argparse.ArgumentParser(description="Generate 2D Taylor-Green vortex fields (t=0) and dump VTK.")
     parser.add_argument("--nx", type=int, default=128, help="grid size in x")
     parser.add_argument("--ny", type=int, default=128, help="grid size in y")
@@ -188,3 +163,4 @@ return: 終了コード"""
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
